@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html data-fused-theme="shell">
+<head>
+<meta charset="utf-8" />
+<!-- Declares this page a fused app's entry — keep it near the top of <head>
+     (detection reads only the first 4 KiB). -->
+<meta name="fused-app" />
+<!-- The fused page API version this app was authored against (see
+     fused_render/fused_api_version.py). The app page offers a "Migrate"
+     task when the runtime has moved past it. -->
+<meta name="fused-api-version" content="1" />
+<meta name="fused-app-id" content="notetaker-meeting-sync-6ae67c5d" />
+<title>Meeting Notebook</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --desk: #121316; --side: #17191d; --text: #e6e1d6; --muted: #9a958a; --line: #2c3038;
+    --paper: #1f1e1b; --grid: rgba(232, 225, 210, .055); --margin: rgba(224, 87, 75, .38);
+    --ink: #ebe5d8; --ink-soft: #b5ae9f; --red: #e0574b; --red-soft: rgba(224, 87, 75, .14);
+    --blue: #8fb1e8; --blue-soft: rgba(143, 177, 232, .12); --amber: #d9a441; --chip: rgba(255, 255, 255, .06); --hover: rgba(255, 255, 255, .05);
+    --ring: #8b8579; --hole: #0d0e10; --note: #3a3421; --note-ink: #efe2b4;
+    --washi-a: rgba(224, 87, 75, .38); --washi-b: rgba(143, 177, 232, .22);
+    --shadow: 0 1px 0 rgba(0, 0, 0, .45), 0 14px 34px rgba(0, 0, 0, .38);
+    --accent: var(--red);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --desk: #ebe7de; --side: #f5f2ea; --text: #2a2824; --muted: #7a7469; --line: #ddd6c7;
+    --paper: #fcfaf4; --grid: rgba(70, 110, 170, .12); --margin: rgba(200, 49, 43, .35);
+    --ink: #2a2824; --ink-soft: #5d584f; --red: #c8312b; --red-soft: rgba(200, 49, 43, .09);
+    --blue: #2d4f8a; --blue-soft: rgba(45, 79, 138, .09); --amber: #b7791f; --chip: rgba(40, 35, 25, .06); --hover: rgba(40, 35, 25, .05);
+    --ring: #7a746a; --hole: #d9d3c6; --note: #f7e9a6; --note-ink: #4a3f12;
+    --washi-a: rgba(200, 49, 43, .30); --washi-b: rgba(45, 79, 138, .18);
+    --shadow: 0 1px 0 rgba(0, 0, 0, .05), 0 12px 30px rgba(70, 55, 30, .13);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  button, input, select, textarea { font: inherit; color: inherit; margin: 0; }
+  button { background: none; border: 0; padding: 0; cursor: pointer; }
+  ::placeholder { color: var(--muted); opacity: 1; }
+  input, select, textarea, progress { accent-color: var(--accent, currentColor); }
+  img, svg, video, canvas { display: block; max-width: 100%; }
+
+  :root {
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  html, body { height: 100%; }
+  body { font: 14px/1.5 var(--sans); color: var(--text); background: var(--desk); overflow: hidden; }
+  .scroll { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  .scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+  .app { display: grid; grid-template-columns: 250px minmax(0, 1fr); height: 100vh; }
+
+  /* ---------- sidebar ---------- */
+  .side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .side-scroll { flex: 1; overflow-y: auto; padding: 14px 12px 12px; min-height: 0; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 14px; }
+  .brand-mark { width: 30px; height: 30px; flex: none; }
+  .brand b { display: block; font-size: 14px; font-weight: 600; }
+  .brand span { display: block; font-size: 11.5px; line-height: 1.2; color: var(--muted); }
+  .side-h { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 14px 6px 6px; display: flex; justify-content: space-between; align-items: center; }
+  .side-h button { color: var(--muted); font-size: 13px; padding: 0 4px; border-radius: 4px; }
+  .side-h button:hover { color: var(--text); background: var(--hover); }
+
+  .mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; padding: 0 2px; }
+  .mini .wd { font-size: 10px; line-height: 1; color: var(--muted); text-align: center; padding: 4px 0 6px; }
+  .mini button { position: relative; height: 28px; border-radius: 6px; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .mini button:hover { background: var(--hover); }
+  .mini button.out { color: var(--muted); opacity: .45; }
+  .mini button.today { color: var(--red); font-weight: 700; }
+  .mini button.sel { background: var(--red-soft); color: var(--text); font-weight: 600; }
+  .mini button.has::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; border: 1px solid var(--red); }
+  .mini button.alldone::after { background: var(--red); }
+
+  .pages { list-style: none; margin: 0; padding: 0; }
+  .pages button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 6px 8px; border-radius: 6px; color: var(--ink-soft); }
+  .pages button:hover { background: var(--hover); color: var(--text); }
+  .pages button.sel { background: var(--hover); color: var(--text); font-weight: 600; }
+  .pages .pg-ico { width: 14px; height: 14px; flex: none; opacity: .7; }
+  .pages .pg-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pages .pg-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pages .pg-count.done { color: var(--red); }
+
+  .syncbox { border-top: 1px solid var(--line); padding: 12px 14px 14px; font-size: 12px; color: var(--ink-soft); }
+  .syncbox .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .syncbox .row + .row { margin-top: 8px; }
+  .syncbox .label { font-weight: 600; color: var(--text); font-size: 12px; }
+  .syncbox .sub { color: var(--muted); font-size: 11px; }
+  .syncbox .status { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .syncbox .status span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.live { background: var(--amber); animation: pulse 1.4s ease-in-out infinite; }
+  .dot.ok { background: #5aa469; }
+  .dot.warn { background: var(--red); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .switch { width: 30px; height: 18px; border-radius: 9px; background: var(--line); position: relative; flex: none; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s; }
+  .switch[aria-checked="true"] { background: var(--red); }
+  .switch[aria-checked="true"]::after { transform: translateX(12px); }
+  .linkbtn { color: var(--blue); font-size: 12px; }
+  .linkbtn:hover { text-decoration: underline; }
+
+  /* ---------- desk ---------- */
+  .desk { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs { display: flex; gap: 2px; background: var(--chip); padding: 2px; border-radius: 8px; }
+  .tabs button { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--ink-soft); }
+  .tabs button[aria-selected="true"] { background: var(--paper); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+  .tb-btn { height: 28px; min-width: 28px; padding: 0 9px; border-radius: 6px; color: var(--ink-soft); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .tb-btn:hover { background: var(--hover); color: var(--text); }
+  .tb-btn:disabled { opacity: .4; cursor: default; background: none; }
+  .tb-title { font: 600 13px/1 var(--sans); padding: 0 6px; white-space: nowrap; }
+  .spacer { flex: 1; }
+  .btn { height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--red); color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { filter: brightness(1.07); }
+  .btn:disabled { opacity: .5; cursor: default; filter: none; }
+  .btn.ghost { background: var(--chip); color: var(--text); }
+  .stage { flex: 1; overflow: auto; min-height: 0; padding: 28px 28px 80px; }
+
+  /* ---------- notebook sheet ---------- */
+  .sheet { position: relative; max-width: 860px; margin: 0 auto; padding-left: 20px; }
+  .binding {
+    position: absolute; left: 0; top: 18px; bottom: 18px; width: 34px; z-index: 2; pointer-events: none;
+    background-image:
+      radial-gradient(13px 5.5px at 16px 14px, transparent 0 56%, var(--ring) 60% 94%, transparent 100%),
+      radial-gradient(circle at 27px 14px, var(--hole) 0 3.2px, transparent 3.8px);
+    background-size: 34px 28px; background-repeat: repeat-y;
+  }
+  .paper {
+    position: relative; background-color: var(--paper); border-radius: 3px 10px 10px 3px; box-shadow: var(--shadow);
+    padding: 40px 48px 56px 64px; min-height: 640px; color: var(--ink);
+    background-image:
+      linear-gradient(90deg, transparent 0 44px, var(--margin) 44px 45px, transparent 45px),
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+  }
+  .washi { position: absolute; top: -11px; right: 92px; width: 128px; height: 26px; transform: rotate(2.5deg); opacity: .9;
+    background: repeating-linear-gradient(45deg, var(--washi-a) 0 7px, var(--washi-b) 7px 14px); }
+  .page-head { display: flex; align-items: flex-start; gap: 18px; padding-bottom: 18px; border-bottom: 2px solid var(--ink); }
+  .date-big { font: 700 64px/0.9 var(--serif); letter-spacing: -.02em; min-width: 64px; }
+  .date-meta { flex: 1; min-width: 0; padding-top: 2px; }
+  .date-wd { font: 600 20px/1.2 var(--serif); }
+  .date-en { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
+  .day-sum { margin-top: 8px; font-size: 13px; color: var(--ink-soft); max-width: 560px; }
+  .hanko { width: 70px; height: 70px; flex: none; border-radius: 50%; color: var(--red); border: 3px solid var(--red);
+    box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--red); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; transform: rotate(-12deg); opacity: .88; font-family: var(--serif); }
+  .hanko b { font-size: 24px; line-height: 1; font-weight: 700; }
+  .hanko small { font-size: 9.5px; letter-spacing: .12em; margin-top: 3px; font-weight: 700; }
+  .hanko.part b { font-size: 20px; }
+
+  .sec { margin-top: 28px; }
+  .sec-h { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; }
+  .sec-h h2 { margin: 0; font: 700 19px/1.2 var(--serif); }
+  .sec-h .en { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-soft); }
+  .sec-h .count { margin-left: auto; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .sticky { background: var(--note); color: var(--note-ink); padding: 10px 14px; margin: 18px 0 0; border-radius: 2px; font-size: 12.5px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, .12); transform: rotate(-.4deg); max-width: 620px; }
+  .sticky b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+  .sticky ul { margin: 0; padding-left: 18px; }
+
+  /* to-dos */
+  .todos { list-style: none; margin: 0; padding: 0; }
+  .todo { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 9px 6px 9px 4px; border-bottom: 1px dashed var(--line); }
+  .todo::before { content: ""; position: absolute; left: -12px; top: 13px; width: 4px; height: 14px; border-radius: 2px; }
+  .todo.pr-high::before { background: var(--red); }
+  .todo.pr-medium::before { background: var(--amber); opacity: .7; }
+  .cb { width: 18px; height: 18px; flex: none; margin-top: 2px; border: 1.6px solid var(--ink); border-radius: 3px; position: relative; background: var(--paper); }
+  .cb:hover { border-color: var(--red); }
+  .cb[aria-checked="true"]::after { content: ""; position: absolute; left: 4px; top: -4px; width: 7px; height: 14px; border: solid var(--red); border-width: 0 3px 3px 0; transform: rotate(40deg); }
+  .t-body { flex: 1; min-width: 0; }
+  .t-text { font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; cursor: text; }
+  .todo.done .t-text { text-decoration: line-through; text-decoration-color: var(--red); color: var(--ink-soft); }
+  .t-edit { width: 100%; border: 0; border-bottom: 1.5px solid var(--red); background: transparent; outline: none; font-size: 14.5px; padding: 0; }
+  .t-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; font-size: 11.5px; color: var(--ink-soft); }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 10px; background: var(--chip); font-size: 11.5px; color: var(--ink-soft); max-width: 100%; }
+  .chip:hover { color: var(--text); }
+  button.chip { cursor: pointer; }
+  .chip.red { background: var(--red-soft); color: var(--red); }
+  .t-ctx { margin-top: 4px; font-size: 12px; color: var(--ink-soft); font-style: italic; }
+  .t-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+  .todo:hover .t-actions, .todo:focus-within .t-actions { opacity: 1; }
+  .t-actions button { font-size: 11.5px; color: var(--ink-soft); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+  .t-actions button:hover { background: var(--hover); color: var(--text); }
+  .todo.nsel { background: var(--blue-soft); border-radius: 4px; }
+  .todo.nsel .t-actions { opacity: 1; }
+  .t-actions button.on { color: var(--blue); font-weight: 600; }
+  a.chip { text-decoration: none; }
+  .chip.notion { color: var(--blue); }
+  .tray { position: fixed; left: calc(50% + 125px); bottom: 18px; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 15;
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 10px; white-space: nowrap;
+    background: var(--paper); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 12.5px; }
+  .tray .sub { color: var(--ink-soft); }
+  .has-tray .toast { bottom: 74px; }
+  .add-todo { display: flex; align-items: center; gap: 12px; padding: 10px 6px 4px 4px; }
+  .add-todo .plus { width: 18px; text-align: center; color: var(--red); font-weight: 700; font-size: 16px; }
+  .add-todo input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 14px; padding: 2px 0; border-bottom: 1px solid transparent; }
+  .add-todo input:focus { border-bottom-color: var(--red); }
+  .empty-note { color: var(--ink-soft); font-size: 13px; padding: 10px 0; }
+
+  /* meetings */
+  .mtg { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .mtg:last-child { border-bottom: 0; }
+  .mtg.flash { animation: flash 1.4s ease-out; }
+  @keyframes flash { 0% { background: var(--red-soft); } 100% { background: transparent; } }
+  .m-time { font: 600 15px/1.2 var(--serif); font-variant-numeric: tabular-nums; padding-top: 2px; }
+  .m-time span { display: block; font-size: 12px; color: var(--ink-soft); font-weight: 400; margin-top: 2px; }
+  .m-head { display: flex; align-items: flex-start; gap: 10px; }
+  .m-head h3 { margin: 0; flex: 1; min-width: 0; font: 700 16px/1.3 var(--sans); }
+  .talk { position: relative; width: 32px; height: 32px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--red); background: var(--red-soft); }
+  .talk:hover { background: var(--red); color: #fff; }
+  .talk svg { width: 17px; height: 17px; }
+  .talk .n { position: absolute; top: -3px; right: -3px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--ink); color: var(--paper); font-size: 9.5px; font-weight: 700; line-height: 15px; text-align: center; }
+  .m-who { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .m-sum { margin: 8px 0 0; font-size: 13.5px; color: var(--ink); max-width: 640px; }
+  .m-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 24px; margin-top: 10px; }
+  .m-cols h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); font-weight: 600; }
+  .m-cols ul { margin: 0; padding-left: 16px; font-size: 13px; }
+  .m-cols li { margin: 2px 0; }
+  .m-cols li::marker { color: var(--red); }
+  .m-note { margin: 8px 0 0; font-size: 12px; color: var(--ink-soft); font-style: italic; }
+  .m-more { margin-top: 10px; }
+  .m-more summary { list-style: none; cursor: pointer; font-size: 12px; color: var(--blue); display: inline-flex; align-items: center; gap: 4px; }
+  .m-more summary::-webkit-details-marker { display: none; }
+  .m-more summary::before { content: "▸"; font-size: 10px; transition: transform .12s; }
+  .m-more[open] summary::before { transform: rotate(90deg); }
+  .m-more .md { margin-top: 8px; padding: 10px 14px; border-left: 2px solid var(--line); font-size: 13px; }
+  .md p { margin: 0 0 6px; }
+  .md ul { margin: 0 0 8px; padding-left: 18px; }
+  .md h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
+  .md h4:first-child { margin-top: 0; }
+  .m-foot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+  .m-foot a { font-size: 11.5px; color: var(--blue); text-decoration: none; }
+  .m-foot a:hover { text-decoration: underline; }
+
+  .nothing { text-align: center; padding: 26px 10px 8px; color: var(--ink-soft); }
+  .nothing p { margin: 0 0 12px; font-size: 13px; }
+  .err { margin: 18px 0 0; padding: 10px 14px; border-left: 3px solid var(--red); background: var(--red-soft); font-size: 12.5px; border-radius: 0 6px 6px 0; }
+  .err pre { white-space: pre-wrap; font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace; margin: 6px 0 0; max-height: 200px; overflow: auto; }
+
+  /* ---------- calendar ---------- */
+  .cal { max-width: 1100px; margin: 0 auto; background: var(--paper); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .cal-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 2px solid var(--ink); }
+  .cal-head div { padding: 10px 10px 8px; font-size: 11px; line-height: 1; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+  .cal-head .sun, .cal-grid .sun .c-num { color: var(--red); }
+  .cal-head .sat, .cal-grid .sat .c-num { color: var(--blue); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .cell { position: relative; display: flex; flex-direction: column; align-items: stretch; text-align: left; min-height: 116px; padding: 8px 8px 6px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-width: 0; color: var(--ink); }
+  .cell:nth-child(7n) { border-right: 0; }
+  .cell:hover { background: var(--hover); }
+  .cell.out { opacity: .4; }
+  .cell.sel { box-shadow: inset 0 0 0 2px var(--red); }
+  .c-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+  .c-num { font: 600 15px/1 var(--serif); font-variant-numeric: tabular-nums; }
+  .cell.today .c-num { background: var(--red); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+  .c-stamp { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--red); color: var(--red); font: 700 12px/19px var(--sans); text-align: center; transform: rotate(-12deg); }
+  .c-mtg { font-size: 10.5px; color: var(--ink-soft); }
+  .c-todos { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .c-todos li { font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 13px; position: relative; }
+  .c-todos li::before { content: ""; position: absolute; left: 0; top: 3px; width: 8px; height: 8px; border: 1.2px solid var(--ink-soft); border-radius: 2px; }
+  .c-todos li.done { color: var(--ink-soft); text-decoration: line-through; }
+  .c-todos li.done::before { background: var(--red); border-color: var(--red); }
+  .c-more { margin-top: auto; padding-top: 4px; font-size: 10.5px; color: var(--ink-soft); }
+
+  /* ---------- open list ---------- */
+  .open { max-width: 860px; margin: 0 auto; }
+  .open-day { background: var(--paper); border-radius: 8px; box-shadow: var(--shadow); padding: 14px 22px 10px 40px; margin-bottom: 16px; }
+  .open-day h3 { margin: 0 0 4px; display: flex; align-items: baseline; gap: 10px; font: 700 16px/1.3 var(--serif); }
+  .open-day h3 button { font: inherit; }
+  .open-day h3 button:hover { color: var(--red); }
+  .open-day h3 span { font: 12px var(--sans); color: var(--ink-soft); letter-spacing: 0; }
+  .open-day h3 .late { color: var(--red); }
+
+  /* ---------- drawer (chat / task) ---------- */
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100%); z-index: 20; display: flex; flex-direction: column;
+    background: var(--paper); color: var(--ink); border-left: 1px solid var(--line); box-shadow: -18px 0 40px rgba(0, 0, 0, .22); }
+  .drawer[hidden] { display: none; }
+  .dr-head { display: flex; gap: 10px; align-items: flex-start; padding: 16px 16px 12px 20px; border-bottom: 2px solid var(--ink); }
+  .dr-head .kick { font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--red); font-weight: 700; }
+  .dr-head h3 { margin: 2px 0 0; font: 700 16px/1.3 var(--sans); }
+  .dr-head .sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; }
+  .dr-head > div { flex: 1; min-width: 0; }
+  .x { width: 28px; height: 28px; border-radius: 6px; font-size: 18px; line-height: 1; color: var(--ink-soft); flex: none; }
+  .x:hover { background: var(--hover); color: var(--text); }
+  .log { flex: 1; overflow-y: auto; padding: 16px 18px; min-height: 0;
+    background-image: linear-gradient(transparent 27px, var(--grid) 27px 28px); background-size: 100% 28px; }
+  .msg { max-width: 92%; margin-bottom: 12px; font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere; }
+  .msg.user { margin-left: auto; background: var(--red-soft); padding: 8px 12px; border-radius: 12px 12px 2px 12px; }
+  .msg.assistant { padding: 2px 2px; }
+  .msg.assistant p { margin: 0 0 6px; }
+  .msg.assistant ul { margin: 0 0 6px; padding-left: 18px; }
+  .msg.err { color: var(--red); font-size: 12.5px; }
+  .msg .who { font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); margin-bottom: 2px; }
+  .msg code { font: 12px ui-monospace, Menlo, Consolas, monospace; background: var(--chip); padding: 0 4px; border-radius: 3px; }
+  .caret { display: inline-block; width: 7px; height: 14px; background: var(--red); vertical-align: -2px; animation: pulse 1s steps(2) infinite; }
+  .suggest { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 10px; }
+  .suggest button { font-size: 12px; padding: 4px 10px; border-radius: 12px; border: 1px solid var(--line); color: var(--ink-soft); background: var(--paper); }
+  .suggest button:hover { border-color: var(--red); color: var(--red); }
+  .composer { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); align-items: flex-end; }
+  .composer textarea { flex: 1; min-width: 0; resize: none; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--paper); font-size: 13.5px; line-height: 1.4; outline: none; max-height: 140px; }
+  .composer textarea:focus { border-color: var(--red); }
+  .dr-foot { display: flex; justify-content: space-between; gap: 8px; padding: 0 16px 12px; font-size: 12px; }
+  .dr-foot button { color: var(--ink-soft); font-size: 12px; }
+  .dr-foot button:hover { color: var(--red); }
+  .dr-frame { flex: 1; border: 0; width: 100%; min-height: 0; background: var(--paper); }
+  .ctx-pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 9px; background: var(--chip); margin-right: 4px; }
+
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 8px; font-size: 12.5px; box-shadow: var(--shadow); max-width: 80vw; }
+  .toast[hidden] { display: none; }
+
+  /* preview placeholder */
+  .pv { display: flex; align-items: center; justify-content: center; height: 100vh; padding: 24px; }
+  .pv .sheet { width: 100%; max-width: 520px; }
+  .pv .paper { min-height: 300px; padding: 34px 30px 30px 60px; }
+
+  @media (max-width: 820px) {
+    .app { grid-template-columns: minmax(0, 1fr); }
+    .side { display: none; }
+    .stage { padding: 18px 12px 60px; }
+    .paper { padding: 32px 18px 40px 54px; }
+    .date-big { font-size: 48px; }
+    .cell { min-height: 84px; }
+    .c-todos { display: none; }
+    .tray { left: 50%; }
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <aside id="drawer" class="drawer" hidden></aside>
+  <div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+  // ---------- helpers ----------
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const pad = n => String(n).padStart(2, "0");
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseD = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const d = parseD(s); d.setDate(d.getDate() + n); return iso(d); };
+  const todayISO = () => iso(new Date());
+  const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
+  const WD_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const MON_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const short = s => { const d = parseD(s); return `${WD_EN[d.getDay()].slice(0, 3)}, ${MON_EN[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+  const shortNoWd = s => { const d = parseD(s); return `${MON_EN[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+  function rel(ts) {
+    if (!ts) return "";
+    const t = new Date(ts).getTime();
+    if (isNaN(t)) return "";
+    const m = Math.round((Date.now() - t) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m} min ago`;
+    if (m < 60 * 24) return `${Math.round(m / 60)} h ago`;
+    return shortNoWd(iso(new Date(t)));
+  }
+  const SOURCE = { "wispr-flow": "Wispr Flow", "google-calendar": "Google Calendar", circleback: "Circleback", notion: "Notion" };
+  const firstName = s => String(s || "").trim().split(/\s+/)[0];
+
+  function isPreview() {
+    if (new URLSearchParams(location.search).get("_preview") === "1") return true;
+    try {
+      let w = window;
+      while (w.parent && w.parent !== w) {
+        w = w.parent;
+        if (new URLSearchParams(w.location.search).get("_preview") === "1") return true;
+      }
+    } catch (e) { /* cross-origin ancestor: the climb ends here */ }
+    return false;
+  }
+
+  const ICON = `<svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#c8312b"/><rect x="21" y="11" width="31" height="42" rx="4" fill="#fbf8f0"/><g stroke="#2a2824" stroke-width="4" stroke-linecap="round" fill="none"><path d="M14 18h11M14 28h11M14 38h11M14 48h11"/><path d="M29 23h16M29 32h16M29 41h11"/></g></svg>`;
+  const BUBBLE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><circle cx="8.5" cy="10.5" r=".6" fill="currentColor"/><circle cx="12" cy="10.5" r=".6" fill="currentColor"/><circle cx="15.5" cy="10.5" r=".6" fill="currentColor"/></svg>`;
+  const PAGE_ICO = `<svg class="pg-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4" y="2" width="9.5" height="12" rx="1.5"/><path d="M2.5 4.5h3M2.5 8h3M2.5 11.5h3"/></svg>`;
+
+  const root = $("#root");
+  const drawer = $("#drawer");
+
+  // ---------- preview: static placeholder, no Python ----------
+  if (isPreview()) {
+    root.innerHTML = `<div class="pv"><div class="sheet"><div class="binding"></div><div class="paper"><div class="washi"></div>
+      <div class="page-head"><div class="date-big">${new Date().getDate()}</div><div class="date-meta"><div class="date-wd">Meeting Notebook</div>
+      <div class="date-en">One page per day</div><div class="day-sum">To-dos pulled from your meetings, kept day by day.</div></div></div>
+      </div></div></div>`;
+    return;
+  }
+
+  const LOCAL = fused.env === "local";
+
+  // ---------- state ----------
+  const S = {
+    booted: false, loading: false, loadedDate: null, wantDate: null, error: null,
+    index: [], day: null, settings: { auto_sync: true, interval_min: 90 }, sync: { requests: [] },
+    pending: [], problems: [], syncTasks: [], starting: false,
+    nsel: new Map(), notionTasks: [], sending: false,   // to-dos picked for Notion tickets, keyed "date|id"
+  };
+  const C = { mode: null, date: null, mid: null, meeting: null, todos: [], transcript: "", messages: [], busy: false, stream: "", abort: null, loading: false, taskUrl: "", taskTitle: "" };
+
+  function P() {
+    const views = ["notebook", "calendar", "open"];
+    const v = fused.params.get("view");
+    const view = views.includes(v) ? v : "notebook";
+    const d = fused.params.get("date");
+    const date = isDate(d) ? d : todayISO();
+    const mo = fused.params.get("month");
+    const month = /^\d{4}-\d{2}$/.test(mo || "") ? mo : date.slice(0, 7);
+    return { view, date, month, chat: fused.params.get("chat") || "" };
+  }
+  const setP = (k, v) => fused.params.set(k, v == null ? null : String(v));
+
+  // ---------- data ----------
+  // quiet = background refresh: no loading state, and no re-render when nothing changed.
+  async function load(date, quiet) {
+    if (!quiet) S.loading = true;
+    S.wantDate = date;
+    try {
+      const r = await fused.runPython("./notebook.py", { date });
+      const sig = JSON.stringify([r.index, r.day, r.settings, r.problems]);
+      const same = quiet && !S.error && date === S.loadedDate && sig === S.sig;
+      Object.assign(S, { index: r.index, day: r.day, settings: r.settings, sync: r.sync, pending: r.inbox_pending, problems: r.problems, loadedDate: date, error: null, sig });
+      if (r.merged && r.merged.length) toast(`Synced ${r.merged.map(shortNoWd).join(", ")}`);
+      if (same) return;
+    } catch (e) {
+      S.error = e; S.loadedDate = date;
+    }
+    S.loading = false; S.booted = true;
+    render();
+  }
+  const reload = () => load(P().date, true);
+  let reloadTimer = 0;
+  const reloadSoon = () => { clearTimeout(reloadTimer); reloadTimer = setTimeout(reload, 1200); };
+
+  function patchTodo(date, id, fn) {
+    if (S.day && S.day.date === date) S.day.todos.forEach(t => { if (t.id === id) fn(t); });
+    const row = S.index.find(r => r.date === date);
+    if (row) row.todos.forEach(t => { if (t.id === id) fn(t); });
+  }
+
+  async function mutate(date, args) {
+    const params = { date };
+    for (const [k, v] of Object.entries(args)) params[k] = String(v);
+    try {
+      const r = await fused.runPython("./todos.py", params, { key: null });
+      S.index = r.index;
+      if (S.day && S.day.date === r.day.date) S.day = r.day;
+    } catch (e) {
+      toast(e.message || "Couldn't save that change");
+      await reload();
+      return;
+    }
+    render();
+  }
+
+  // ---------- rendering ----------
+  // Whole-page repaint; keeps scroll positions and a half-typed new to-do.
+  let lastView = "";
+  function render() {
+    const p = P();
+    const viewKey = `${p.view}|${p.view === "calendar" ? p.month : p.date}`;
+    const stage = $("#stage"), side = root.querySelector(".side-scroll");
+    const keep = { stage: stage && viewKey === lastView ? stage.scrollTop : 0, side: side ? side.scrollTop : 0 };
+    const add = root.querySelector(".add-todo input");
+    const draft = add && add.value, focused = add && document.activeElement === add;
+    const tray = trayHTML();
+    root.innerHTML = `<div class="app">${sidebarHTML(p)}<main class="desk">${toolbarHTML(p)}<div class="stage scroll" id="stage">${stageHTML(p)}</div></main></div>${tray}`;
+    document.body.classList.toggle("has-tray", !!tray);
+    lastView = viewKey;
+    $("#stage").scrollTop = keep.stage;
+    const side2 = root.querySelector(".side-scroll"); if (side2) side2.scrollTop = keep.side;
+    const add2 = root.querySelector(".add-todo input");
+    if (add2 && draft) add2.value = draft;
+    if (add2 && focused) add2.focus();
+  }
+
+  function dayRow(date) { return S.index.find(r => r.date === date); }
+  function progress(row) {
+    const n = row ? row.todos.length : 0, d = row ? row.todos.filter(t => t.done).length : 0;
+    return { n, d, all: n > 0 && n === d };
+  }
+
+  function sidebarHTML(p) {
+    const today = todayISO();
+    const focus = p.view === "calendar" ? p.month : p.date.slice(0, 7);
+    const [y, m] = focus.split("-").map(Number);
+    const first = new Date(y, m - 1, 1);
+    const off = (first.getDay() + 6) % 7;
+    const days = new Date(y, m, 0).getDate();
+    const weeks = Math.ceil((off + days) / 7);
+    let mini = ["M", "T", "W", "T", "F", "S", "S"].map(w => `<div class="wd">${w}</div>`).join("");
+    for (let i = 0; i < weeks * 7; i++) {
+      const d = new Date(y, m - 1, 1 - off + i), s = iso(d), row = dayRow(s), pr = progress(row);
+      const cls = [d.getMonth() !== m - 1 && "out", s === today && "today", p.view === "notebook" && s === p.date && "sel",
+        row && (row.todos.length || row.n_meetings) && "has", pr.all && "alldone"].filter(Boolean).join(" ");
+      mini += `<button class="${cls}" data-act="goto" data-date="${s}" title="${short(s)}">${d.getDate()}</button>`;
+    }
+    const dates = new Set(S.index.map(r => r.date).slice(0, 20));
+    dates.add(today); dates.add(addDays(today, -1));
+    const list = [...dates].sort().reverse().map(s => {
+      const row = dayRow(s), pr = progress(row);
+      const name = s === today ? "Today" : s === addDays(today, -1) ? "Yesterday" : short(s);
+      const count = pr.n ? `<span class="pg-count ${pr.all ? "done" : ""}">${pr.d}/${pr.n}</span>` : (row && row.n_meetings ? `<span class="pg-count">${row.n_meetings} mtg</span>` : "");
+      return `<li><button class="${p.view === "notebook" && s === p.date ? "sel" : ""}" data-act="goto" data-date="${s}">${PAGE_ICO}<span class="pg-name">${esc(name)}${s === today || s === addDays(today, -1) ? ` <span class="pg-count">${shortNoWd(s)}</span>` : ""}</span>${count}</button></li>`;
+    }).join("");
+    return `<aside class="side"><div class="side-scroll scroll">
+      <div class="brand">${ICON}<div><b>Meeting Notebook</b><span>To-dos from your meetings</span></div></div>
+      <div class="side-h"><span>${MON_EN[m - 1]} ${y}</span><span><button data-act="mini" data-delta="-1" title="Previous month">‹</button><button data-act="mini" data-delta="1" title="Next month">›</button></span></div>
+      <div class="mini">${mini}</div>
+      <div class="side-h"><span>Pages</span></div>
+      <ul class="pages">${list}</ul>
+    </div>${syncBoxHTML(p)}</aside>`;
+  }
+
+  const ACTIVE = new Set(["upcoming", "queued", "in_progress", "needs_attention", "blocked"]);
+  function activeSync() { return S.syncTasks.filter(t => ACTIVE.has(t.status)); }
+  function activeNotion() { return S.notionTasks.filter(t => ACTIVE.has(t.status)); }
+
+  // Bottom tray: what's picked for Notion, or the ticket task while it runs.
+  function trayHTML() {
+    if (!LOCAL) return "";
+    const n = S.nsel.size, db = (S.settings.notion && S.settings.notion.database_name) || "Notion";
+    if (n) return `<div class="tray" role="region" aria-label="Notion tickets">
+      <span><b>${n}</b> to-do${n > 1 ? "s" : ""} picked <span class="sub">→ Notion · ${esc(db)}</span></span>
+      <button class="btn" data-act="notion-send" ${S.sending ? "disabled" : ""}>${S.sending ? "Starting…" : `Create ticket${n > 1 ? "s" : ""}`}</button>
+      <button class="tb-btn" data-act="notion-clear" title="Unpick all (Esc)">Clear</button></div>`;
+    const act = activeNotion();
+    if (!act.length) return "";
+    const t = act[0], attn = t.status === "needs_attention" || t.status === "blocked";
+    return `<div class="tray" role="status"><span class="dot ${attn ? "warn" : "live"}"></span>
+      <span>${attn ? "The Notion task needs you" : `Claude is creating tickets in ${esc(db)}…`}</span>
+      ${t.key ? `<button class="linkbtn" data-act="task" data-key="${esc(t.key)}" data-title="Notion tickets">Open</button>` : ""}</div>`;
+  }
+
+  function syncBoxHTML(p) {
+    if (!LOCAL) return "";
+    const act = activeSync();
+    let status, open = "";
+    if (S.starting) status = `<span class="dot live"></span><span>Starting sync…</span>`;
+    else if (act.length) {
+      const t = act[0], attn = t.status === "needs_attention" || t.status === "blocked";
+      status = `<span class="dot ${attn ? "warn" : "live"}"></span><span>${attn ? "Sync needs you" : t.status === "in_progress" ? "Syncing with Claude…" : "Sync queued"}</span>`;
+      if (t.key) open = `<button class="linkbtn" data-act="task" data-key="${esc(t.key)}">Open</button>`;
+    } else {
+      const last = S.day && S.day.synced_at;
+      status = last ? `<span class="dot ok"></span><span>This page synced ${esc(rel(last))}</span>` : `<span class="dot"></span><span>This page isn't synced yet</span>`;
+    }
+    return `<div class="syncbox">
+      <div class="row"><div><div class="label">Auto-sync</div><div class="sub">Calendar + Wispr Flow → Claude, every ${esc(S.settings.interval_min)} min</div></div>
+        <button class="switch" role="switch" aria-checked="${!!S.settings.auto_sync}" data-act="auto" title="Sync yesterday and today automatically while this page is open"></button></div>
+      <div class="row"><div class="status">${status}</div>${open}</div>
+    </div>`;
+  }
+
+  function toolbarHTML(p) {
+    const tabs = [["notebook", "Notebook"], ["calendar", "Calendar"], ["open", "Open to-dos"]]
+      .map(([k, l]) => `<button role="tab" aria-selected="${p.view === k}" data-act="view" data-view="${k}">${l}</button>`).join("");
+    let nav = "";
+    if (p.view === "notebook") {
+      nav = `<button class="tb-btn" data-act="step" data-delta="-1" title="Previous day (←)">‹</button>
+        <button class="tb-btn" data-act="goto" data-date="${todayISO()}">Today</button>
+        <button class="tb-btn" data-act="step" data-delta="1" title="Next day (→)">›</button>
+        <span class="tb-title">${esc(short(p.date))}</span>`;
+    } else if (p.view === "calendar") {
+      const [y, m] = p.month.split("-").map(Number);
+      nav = `<button class="tb-btn" data-act="month" data-delta="-1" title="Previous month">‹</button>
+        <button class="tb-btn" data-act="month" data-delta="0">This month</button>
+        <button class="tb-btn" data-act="month" data-delta="1" title="Next month">›</button>
+        <span class="tb-title">${MON_EN[m - 1]} ${y}</span>`;
+    }
+    const canSync = LOCAL && p.view === "notebook" && p.date <= todayISO();
+    const busy = S.starting || activeSync().length > 0;
+    return `<div class="toolbar"><div class="tabs" role="tablist">${tabs}</div>${nav}<span class="spacer"></span>
+      ${S.loading ? `<span class="tb-btn" aria-live="polite">Loading…</span>` : ""}
+      ${canSync ? `<button class="btn" data-act="sync" data-date="${p.date}" ${busy ? "disabled" : ""} title="Ask Claude to pull this day's meetings from Google Calendar and Wispr Flow">${busy ? "Syncing…" : "Sync this day"}</button>` : ""}
+    </div>`;
+  }
+
+  function stageHTML(p) {
+    if (!S.booted) return `<div class="nothing"><p>Opening your notebook…</p></div>`;
+    if (p.view === "calendar") return calendarHTML(p);
+    if (p.view === "open") return openHTML();
+    return notebookHTML(p);
+  }
+
+  function hankoHTML(todos) {
+    if (!todos.length) return "";
+    const d = todos.filter(t => t.done).length;
+    if (d === todos.length) return `<div class="hanko" title="All done"><b>✓</b><small>DONE</small></div>`;
+    return `<div class="hanko part" title="${d} of ${todos.length} done"><b>${d}/${todos.length}</b><small>DONE</small></div>`;
+  }
+
+  function todoHTML(t, date, titles) {
+    const today = todayISO();
+    const mt = titles[t.meeting_id] || t.meeting_title || "";
+    const late = t.due && !t.done && t.due < today;
+    const n = t.notion || {};
+    const ticket = n.status === "created" && /^https?:/i.test(n.url || "");
+    const picked = S.nsel.has(`${date}|${t.id}`);
+    const canPick = LOCAL && !ticket && n.status !== "queued";
+    const meta = [
+      ticket ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="Open the Notion ticket">Notion ↗</a>` : "",
+      n.status === "queued" ? `<span class="chip notion">→ Notion…</span>` : "",
+      n.status === "failed" ? `<span class="chip red" title="${esc(n.error || "")}">Notion failed</span>` : "",
+      mt ? `<button class="chip" data-act="meeting" data-mid="${esc(t.meeting_id)}" data-date="${esc(t.moved_from || date)}" title="Show meeting">${esc(mt)}</button>` : "",
+      t.priority === "high" ? `<span class="chip red">high</span>` : "",
+      t.due ? `<span class="chip ${late ? "red" : ""}">due ${esc(shortNoWd(t.due))}</span>` : "",
+      t.moved_from ? `<span>carried from ${esc(shortNoWd(t.moved_from))}</span>` : "",
+      t.origin === "manual" ? `<span>added by you</span>` : "",
+    ].filter(Boolean).join("");
+    return `<li class="todo pr-${esc(t.priority || "medium")} ${t.done ? "done" : ""} ${picked ? "nsel" : ""}" data-id="${esc(t.id)}" data-date="${esc(date)}">
+      <button class="cb" role="checkbox" aria-checked="${!!t.done}" data-act="toggle" title="${t.done ? "Mark as not done" : "Mark as done"}"></button>
+      <div class="t-body"><div class="t-text" data-act="edit" title="Double-click to edit">${esc(t.text)}</div>
+        ${meta ? `<div class="t-meta">${meta}</div>` : ""}
+        ${t.context ? `<div class="t-ctx">${esc(t.context)}</div>` : ""}</div>
+      <div class="t-actions">${canPick ? `<button class="${picked ? "on" : ""}" data-act="nsel" aria-pressed="${picked}" title="${picked ? "Unpick" : "Pick this to-do for a Notion ticket"}">${picked ? "✓ Notion" : "→ Notion"}</button>` : ""}${date !== today && !t.done ? `<button data-act="carry" title="Move this to-do to today's page">→ today</button>` : ""}<button data-act="del" title="Delete">✕</button></div>
+    </li>`;
+  }
+
+  function notebookHTML(p) {
+    const d = parseD(p.date);
+    const day = S.day && S.day.date === p.date ? S.day : null;
+    const todos = day ? day.todos : [];
+    const meetings = day ? day.meetings : [];
+    const titles = Object.fromEntries(meetings.map(m => [m.id, m.title]));
+    const open = todos.filter(t => !t.done).length;
+    const order = { high: 0, medium: 1, low: 2 };
+    const sorted = [...todos].sort((a, b) => (a.done - b.done) || (order[a.priority] ?? 1) - (order[b.priority] ?? 1));
+    const warn = [...(day ? day.warnings || [] : []), ...S.problems];
+    const synced = day && day.synced_at;
+
+    let meetingsHTML;
+    if (meetings.length) {
+      meetingsHTML = meetings.map(m => {
+        const mtodos = todos.filter(t => t.meeting_id === m.id).length;
+        const who = (m.attendees || []).map(a => `<span class="chip">${esc(a)}</span>`).join("");
+        const disc = (m.discussed || []).map(x => `<li>${esc(x)}</li>`).join("");
+        const dec = (m.decisions || []).map(x => `<li>${esc(x)}</li>`).join("");
+        return `<div class="mtg" id="mtg-${esc(m.id)}">
+          <div class="m-time">${esc(m.start || "—")}${m.end ? `<span>${esc(m.end)}</span>` : ""}</div>
+          <div><div class="m-head"><h3>${esc(m.title || "Untitled meeting")}</h3>
+            ${LOCAL ? `<button class="talk" data-act="chat" data-mid="${esc(m.id)}" title="Talk to this meeting">${BUBBLE}${m.chat_count ? `<span class="n">${m.chat_count}</span>` : ""}</button>` : ""}</div>
+            ${who ? `<div class="m-who">${who}</div>` : ""}
+            ${m.summary ? `<p class="m-sum">${esc(m.summary)}</p>` : ""}
+            ${disc || dec ? `<div class="m-cols">${disc ? `<div><h4>Discussed</h4><ul>${disc}</ul></div>` : ""}${dec ? `<div><h4>Decisions</h4><ul>${dec}</ul></div>` : ""}</div>` : ""}
+            ${m.notes ? `<p class="m-note">${esc(m.notes)}</p>` : ""}
+            ${m.details ? `<details class="m-more"><summary>Full notes</summary><div class="md">${mdLite(m.details)}</div></details>` : ""}
+            <div class="m-foot">${m.source ? `<span class="chip">${esc(SOURCE[m.source] || m.source)}</span>` : ""}
+              ${m.has_transcript ? `<span class="chip">transcript</span>` : ""}
+              ${mtodos ? `<span class="chip">${mtodos} to-do${mtodos > 1 ? "s" : ""}</span>` : ""}
+              ${m.url && /^https?:/i.test(m.url) ? `<a href="${esc(m.url)}" target="_blank" rel="noopener">Open in source ↗</a>` : ""}</div>
+          </div></div>`;
+      }).join("");
+    } else {
+      const future = p.date > todayISO();
+      meetingsHTML = `<div class="nothing">
+        <p>${future ? "This day hasn't happened yet." : synced ? "No meetings were found for this day." : "Nothing synced for this day yet."}</p>
+        ${LOCAL && !future && !synced ? `<button class="btn" data-act="sync" data-date="${p.date}" ${S.starting || activeSync().length ? "disabled" : ""}>Sync meetings</button>` : ""}</div>`;
+    }
+
+    const err = S.error && S.loadedDate === p.date
+      ? `<div class="err"><b>Couldn't open this page.</b> ${esc(S.error.message || S.error)} <button class="linkbtn" data-act="retry">Retry</button>${S.error.traceback ? `<pre>${esc(S.error.traceback)}</pre>` : ""}</div>` : "";
+
+    return `<article class="sheet"><div class="binding"></div><div class="paper"><div class="washi"></div>
+      <header class="page-head">
+        <div class="date-big">${d.getDate()}</div>
+        <div class="date-meta">
+          <div class="date-wd">${WD_EN[d.getDay()]}</div>
+          <div class="date-en">${MON_EN[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${synced ? ` · synced ${esc(rel(synced))}` : ""}</div>
+          ${day && day.summary ? `<div class="day-sum">${esc(day.summary)}</div>` : ""}
+        </div>
+        ${hankoHTML(todos)}
+      </header>
+      ${err}
+      ${warn.length ? `<div class="sticky"><b>Note</b><ul>${warn.map(w => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""}
+      <section class="sec">
+        <div class="sec-h"><h2>To-do</h2><span class="count">${todos.length ? `${open} open · ${todos.length - open} done` : ""}</span></div>
+        <ul class="todos">${sorted.map(t => todoHTML(t, p.date, titles)).join("")}</ul>
+        ${!todos.length && meetings.length ? `<div class="empty-note">No to-dos for you came out of these meetings.</div>` : ""}
+        <form class="add-todo" data-form="add" data-date="${p.date}"><span class="plus">＋</span><input name="text" autocomplete="off" placeholder="Add a to-do…" aria-label="Add a to-do"></form>
+      </section>
+      <section class="sec">
+        <div class="sec-h"><h2>Meetings</h2><span class="count">${meetings.length ? meetings.length : ""}</span></div>
+        ${meetingsHTML}
+      </section>
+    </div></article>`;
+  }
+
+  function calendarHTML(p) {
+    const [y, m] = p.month.split("-").map(Number);
+    const first = new Date(y, m - 1, 1);
+    const off = (first.getDay() + 6) % 7;
+    const days = new Date(y, m, 0).getDate();
+    const weeks = Math.ceil((off + days) / 7);
+    const today = todayISO();
+    const head = [1, 2, 3, 4, 5, 6, 0].map(i => `<div class="${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${WD_EN[i].slice(0, 3)}</div>`).join("");
+    let cells = "";
+    for (let i = 0; i < weeks * 7; i++) {
+      const d = new Date(y, m - 1, 1 - off + i), s = iso(d), row = dayRow(s), pr = progress(row);
+      const todos = row ? [...row.todos].sort((a, b) => a.done - b.done) : [];
+      const shown = todos.slice(0, 4);
+      const more = todos.length - shown.length;
+      const cls = ["cell", d.getMonth() !== m - 1 && "out", s === today && "today", d.getDay() === 0 && "sun", d.getDay() === 6 && "sat"].filter(Boolean).join(" ");
+      cells += `<div class="${cls}" role="button" tabindex="0" data-act="open-day" data-date="${s}" title="${short(s)}">
+        <div class="c-top"><span class="c-num">${d.getDate()}</span>${pr.all ? `<span class="c-stamp" title="All done">✓</span>` : row && row.n_meetings ? `<span class="c-mtg">${row.n_meetings} mtg</span>` : ""}</div>
+        ${shown.length ? `<ul class="c-todos">${shown.map(t => `<li class="${t.done ? "done" : ""}">${esc(t.text)}</li>`).join("")}</ul>` : ""}
+        ${more > 0 ? `<div class="c-more">+${more} more</div>` : ""}
+      </div>`;
+    }
+    return `<div class="cal"><div class="cal-head">${head}</div><div class="cal-grid">${cells}</div></div>`;
+  }
+
+  function openHTML() {
+    const today = todayISO();
+    const groups = S.index.map(r => ({ r, open: r.todos.filter(t => !t.done) })).filter(g => g.open.length);
+    if (!groups.length) return `<div class="open"><div class="open-day"><div class="nothing"><p>No open to-dos. Everything is ticked off.</p></div></div></div>`;
+    const total = groups.reduce((n, g) => n + g.open.length, 0);
+    return `<div class="open"><p style="color:var(--ink-soft);margin:0 0 14px;font-size:13px">${total} open to-do${total > 1 ? "s" : ""} across ${groups.length} page${groups.length > 1 ? "s" : ""}, newest first.</p>
+      ${groups.map(({ r, open }) => {
+        const age = Math.round((parseD(today) - parseD(r.date)) / 864e5);
+        return `<section class="open-day"><h3><button data-act="goto" data-date="${r.date}">${esc(short(r.date))}</button>
+          <span class="${age >= 3 ? "late" : ""}">${r.date === today ? "today" : age === 1 ? "yesterday" : age > 0 ? `${age} days ago` : ""}</span></h3>
+          <ul class="todos">${open.map(t => todoHTML(t, r.date, {})).join("")}</ul></section>`;
+      }).join("")}</div>`;
+  }
+
+  // ---------- drawer: talk to a meeting / follow a task ----------
+  const SUGGEST = ["What did I commit to?", "Summarize the decisions", "Draft a follow-up message", "What's still unclear?"];
+
+  function mdLite(s) {
+    const lines = esc(s).split("\n");
+    let out = "", list = false;
+    for (const ln of lines) {
+      const h = ln.match(/^\s*#{1,6}\s+(.*)$/);
+      if (h) { if (list) { out += "</ul>"; list = false; } out += `<h4>${inline(h[1])}</h4>`; continue; }
+      const li = ln.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)$/);
+      if (li) { if (!list) { out += "<ul>"; list = true; } out += `<li>${inline(li[1])}</li>`; continue; }
+      if (list) { out += "</ul>"; list = false; }
+      if (ln.trim()) out += `<p>${inline(ln)}</p>`;
+    }
+    if (list) out += "</ul>";
+    return out;
+    function inline(x) { return x.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>"); }
+  }
+
+  function renderDrawer() {
+    if (!C.mode) { drawer.hidden = true; drawer.innerHTML = ""; return; }
+    drawer.hidden = false;
+    if (C.mode === "task") {
+      if (!drawer.querySelector("iframe") || drawer.dataset.url !== C.taskUrl) {
+        drawer.dataset.url = C.taskUrl;
+        drawer.innerHTML = `<div class="dr-head"><div><div class="kick">Claude task</div><h3>${esc(C.taskTitle)}</h3></div><button class="x" data-act="close" title="Close">×</button></div>
+          ${C.taskUrl ? `<iframe class="dr-frame" src="${esc(C.taskUrl)}" title="Claude task"></iframe>` : `<div class="nothing"><p>Opening task…</p></div>`}`;
+      }
+      return;
+    }
+    drawer.dataset.url = "";
+    const m = C.meeting || {};
+    const keepDraft = $("#chatInput") ? $("#chatInput").value : "";
+    const msgs = C.messages.map(x => x.role === "user"
+      ? `<div class="msg user">${esc(x.content)}</div>`
+      : `<div class="msg assistant ${x.error ? "err" : ""}"><div class="who">Notebook</div>${x.error ? esc(x.content) : mdLite(x.content)}</div>`).join("");
+    const live = C.busy ? `<div class="msg assistant"><div class="who">Notebook</div>${mdLite(C.stream)}<span class="caret"></span></div>` : "";
+    const empty = !C.messages.length && !C.busy
+      ? `<div class="msg assistant"><div class="who">Notebook</div><p>Ask anything about <b>${esc(m.title || "this meeting")}</b>. I answer from its summary, notes, your to-dos${C.transcript ? " and the transcript" : ""}.</p>${C.transcript ? "" : `<p style="color:var(--ink-soft)">For word-for-word detail from the recording, use “Ask with Wispr Flow” below.</p>`}</div>` : "";
+    drawer.innerHTML = `<div class="dr-head"><div><div class="kick">Talk to meeting</div><h3>${esc(m.title || "…")}</h3>
+        <div class="sub">${C.date ? esc(short(C.date)) : ""}${m.start ? ` · ${esc(m.start)}${m.end ? `–${esc(m.end)}` : ""}` : ""}${C.transcript ? ` · <span class="ctx-pill">transcript</span>` : ""}${C.todos.length ? `<span class="ctx-pill">${C.todos.length} to-dos</span>` : ""}</div></div>
+        <button class="x" data-act="close" title="Close">×</button></div>
+      <div class="log scroll" id="chatLog">${C.loading ? `<div class="msg assistant"><p>Opening the meeting…</p></div>` : empty + msgs + live}</div>
+      ${!C.messages.length && !C.busy && !C.loading ? `<div class="suggest">${SUGGEST.map(q => `<button data-act="ask" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}
+      <form class="composer" data-form="chat"><textarea id="chatInput" rows="2" placeholder="Ask about this meeting…" ${C.loading ? "disabled" : ""}></textarea>
+        ${C.busy ? `<button type="button" class="btn ghost" data-act="stop">Stop</button>` : `<button class="btn" ${C.loading ? "disabled" : ""}>Ask</button>`}</form>
+      <div class="dr-foot"><button data-act="deep" title="Start a Claude task that can read the live meeting record in Wispr Flow">Ask with Wispr Flow ↗</button>
+        ${C.messages.length ? `<button data-act="clear-chat">Clear conversation</button>` : ""}</div>`;
+    const ta = $("#chatInput");
+    if (ta) { ta.value = keepDraft; }
+    const log = $("#chatLog");
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+
+  async function openChat(date, mid) {
+    if (C.abort) C.abort.abort();
+    Object.assign(C, { mode: "chat", date, mid, meeting: null, todos: [], transcript: "", messages: [], busy: false, stream: "", loading: true });
+    renderDrawer();
+    try {
+      const r = await fused.runPython("./chat.py", { date, meeting_id: mid, op: "get" });
+      if (C.mid !== mid) return;
+      Object.assign(C, { meeting: r.meeting, todos: r.todos, transcript: r.transcript, messages: r.messages, loading: false });
+    } catch (e) {
+      C.loading = false;
+      C.messages = [{ role: "assistant", content: e.message || "Couldn't open this meeting.", error: true }];
+    }
+    renderDrawer();
+    const ta = $("#chatInput"); if (ta) ta.focus();
+  }
+
+  function meetingRecord() {
+    const m = C.meeting || {};
+    const list = (h, xs) => xs && xs.length ? `${h}:\n${xs.map(x => `- ${x}`).join("\n")}\n` : "";
+    return [
+      `Meeting: ${m.title || ""}`,
+      `Date: ${C.date}${m.start ? ` ${m.start}` : ""}${m.end ? `–${m.end}` : ""}`,
+      m.attendees && m.attendees.length ? `Attendees: ${m.attendees.join(", ")}` : "",
+      m.source ? `Source: ${m.source}` : "",
+      m.summary ? `Summary: ${m.summary}` : "",
+      list("Discussed", m.discussed), list("Decisions", m.decisions),
+      list("The user's to-dos from this meeting", C.todos.map(t => `[${t.done ? "x" : " "}] ${t.text}${t.due ? ` (due ${t.due})` : ""}${t.context ? ` — ${t.context}` : ""}`)),
+      m.notes ? `Notes: ${m.notes}` : "",
+      m.details ? `Full meeting notes:\n${m.details}` : "",
+      C.transcript ? `Transcript:\n${C.transcript}` : "Transcript: (none stored)",
+    ].filter(Boolean).join("\n");
+  }
+
+  const SYSTEM = "You are the user's meeting-notebook assistant. You answer questions about ONE meeting using only the meeting record you are given (summary, discussion, decisions, the user's to-dos and the transcript if present). Address the user as \"you\". If the record does not contain the answer, say so in one sentence and suggest the \"Ask with Wispr Flow\" button for a live lookup. Be concise; use short bullet lists for lists. Plain text with light markdown (bold, bullets) only.";
+
+  async function ask(q) {
+    q = (q || "").trim();
+    if (!q || C.busy || C.loading || C.mode !== "chat") return;
+    const mid = C.mid, date = C.date;
+    const history = C.messages.filter(x => !x.error).slice(-12).map(x => `${x.role === "user" ? "User" : "Assistant"}: ${x.content}`).join("\n\n");
+    C.messages.push({ role: "user", content: q });
+    C.busy = true; C.stream = "";
+    renderDrawer();
+    fused.runPython("./chat.py", { date, meeting_id: mid, op: "append", role: "user", content: q }, { key: null }).catch(() => {});
+    const ctl = new AbortController(); C.abort = ctl;
+    const prompt = `MEETING RECORD\n${meetingRecord()}\n\n${history ? `CONVERSATION SO FAR\n${history}\n\n` : ""}User: ${q}`;
+    let paint = 0;
+    try {
+      const res = await fused.ai.text({
+        prompt, systemPrompt: SYSTEM, abortSignal: ctl.signal,
+        onChunk: piece => {
+          if (C.mid !== mid) return;
+          C.stream += piece;
+          if (!paint) paint = requestAnimationFrame(() => { paint = 0; const live = drawer.querySelector(".msg.assistant:last-child"); if (live && C.busy) { live.innerHTML = `<div class="who">Notebook</div>${mdLite(C.stream)}<span class="caret"></span>`; const log = $("#chatLog"); if (log) log.scrollTop = log.scrollHeight; } });
+        },
+      });
+      const text = (res.text || C.stream).trim();
+      if (C.mid === mid) C.messages.push({ role: "assistant", content: text });
+      await fused.runPython("./chat.py", { date, meeting_id: mid, op: "append", role: "assistant", content: text }, { key: null }).catch(() => {});
+      bumpChatCount(mid);
+    } catch (e) {
+      if (C.mid === mid) {
+        if (e.type === "cancelled") { if (C.stream.trim()) C.messages.push({ role: "assistant", content: C.stream.trim() + " …" }); }
+        else C.messages.push({ role: "assistant", error: true, content: e.type === "ai_unavailable" ? "Claude isn't reachable from fused-render right now (the claude CLI is missing or signed out)." : (e.message || "Something went wrong.") });
+      }
+    }
+    if (C.mid === mid) { C.busy = false; C.stream = ""; C.abort = null; renderDrawer(); const ta = $("#chatInput"); if (ta) ta.focus(); }
+  }
+
+  function bumpChatCount(mid) {
+    if (!S.day) return;
+    const m = S.day.meetings.find(x => x.id === mid);
+    if (m) { m.chat_count = (m.chat_count || 0) + 2; const btn = root.querySelector(`.talk[data-mid="${CSS.escape(mid)}"]`); if (btn) { let n = btn.querySelector(".n"); if (!n) { n = document.createElement("span"); n.className = "n"; btn.appendChild(n); } n.textContent = m.chat_count; } }
+  }
+
+  async function deepAsk() {
+    const m = C.meeting || {};
+    const ta = $("#chatInput");
+    const q = (ta && ta.value.trim()) || "Give me a detailed recap of this meeting and everything I personally need to follow up on.";
+    const prompt = `The user is looking at the meeting "${m.title || ""}" on ${C.date}${m.start ? ` (${m.start}${m.end ? `–${m.end}` : ""})` : ""} in their Meeting Notebook app and asked a question about it.
+
+Use the Wispr Flow MCP (Notetaker meeting notes and transcripts; load its tools with ToolSearch("wispr")) to find that meeting and answer. If Wispr Flow isn't connected in this session, say so first, then answer from Circleback, Notion meeting notes or Google Calendar if they have it. This is read-only: don't edit files and don't message anyone.
+
+What the notebook already has:
+${meetingRecord().slice(0, 6000)}
+
+Question: ${q}`;
+    try {
+      const h = await fused.tasks.create({ prompt, title: `Ask · ${m.title || "meeting"}`.slice(0, 80), permissionMode: "auto", queue: false });
+      if (ta) ta.value = "";
+      await openTask(h.key, `Ask · ${m.title || "meeting"}`);
+    } catch (e) { toast(e.message || "Couldn't start a Claude task"); }
+  }
+
+  async function openTask(key, title) {
+    Object.assign(C, { mode: "task", taskTitle: title || "Claude task", taskUrl: "" });
+    if (fused.params.get("chat")) setP("chat", null);
+    renderDrawer();
+    try { C.taskUrl = await fused.tasks.ui({ task: key }); } catch (e) { toast(e.message || "Couldn't open the task"); }
+    if (C.mode === "task") renderDrawer();
+  }
+
+  function closeDrawer() {
+    if (C.abort) C.abort.abort();
+    Object.assign(C, { mode: null, mid: null, date: null, busy: false });
+    if (fused.params.get("chat")) setP("chat", null);
+    renderDrawer();
+  }
+
+  // ---------- sync (Claude task with the Wispr Flow MCP) ----------
+  async function startSync(dates) {
+    if (!LOCAL || S.starting || activeSync().length) return;
+    if (dates) { S.starting = true; render(); }
+    try {
+      const r = dates
+        ? await fused.runPython("./sync.py", { op: "request", dates: dates.join(",") }, { key: "sync" })
+        : await fused.runPython("./sync.py", { op: "plan" }, { key: "sync" });
+      if (!r.dates.length) return;
+      if (!S.starting) { S.starting = true; render(); }
+      const h = await fused.tasks.create({ prompt: r.prompt, title: `Meeting sync · ${r.dates.map(shortNoWd).join(", ")}`, permissionMode: "auto", queue: false });
+      fused.runPython("./sync.py", { op: "mark", request_id: r.request_id, entry_id: h.entryId }, { key: null }).catch(() => {});
+      S.syncTasks = [{ key: h.key, status: "upcoming", title: "Meeting sync" }, ...S.syncTasks];
+      if (dates) toast(`Claude is syncing ${r.dates.map(shortNoWd).join(", ")} from Calendar + Wispr Flow`);
+      h.done.then(() => reload());
+    } catch (e) {
+      toast(e.message || "Couldn't start the sync");
+    } finally {
+      if (S.starting) { S.starting = false; render(); }
+    }
+  }
+
+  // ---------- Notion tickets (Claude task with the Notion connector) ----------
+  // Only the to-dos picked in the tray go out; notion.py marks them queued and writes the prompt.
+  async function sendToNotion() {
+    if (!LOCAL || S.sending || !S.nsel.size) return;
+    S.sending = true; render();
+    let r = null;
+    try {
+      const items = [...S.nsel.values()].map(x => `${x.date}:${x.id}`).join(",");
+      r = await fused.runPython("./notion.py", { op: "request", items }, { key: null });
+      S.nsel.clear();
+      S.index = r.index;
+      if (!r.count) { toast("Those to-dos already have Notion tickets"); return; }
+      const h = await fused.tasks.create({ prompt: r.prompt, title: `Notion tickets · ${r.count} to-do${r.count > 1 ? "s" : ""}`, permissionMode: "auto", queue: false });
+      S.notionTasks = [{ key: h.key, status: "upcoming", title: "Notion tickets" }, ...S.notionTasks];
+      toast(`Claude is creating ${r.count} ticket${r.count > 1 ? "s" : ""} in ${r.database}`);
+      h.done.then(() => reload());
+    } catch (e) {
+      if (r && r.request_id) await fused.runPython("./notion.py", { op: "cancel", request_id: r.request_id }, { key: null }).catch(() => {});
+      toast(e.message || "Couldn't start the Notion task");
+    } finally {
+      S.sending = false;
+      render();
+      reload();
+    }
+  }
+
+  let lastStatus = new Map();
+  function onTasks(rows) {
+    const mine = rows.filter(t => /^(Meeting sync|Notion tickets)/.test(t.title || ""));
+    let finished = false;
+    for (const t of mine) {
+      const id = t.entry_id || t.key, before = lastStatus.get(id);
+      if (before && before !== t.status && !ACTIVE.has(t.status)) finished = true;
+      lastStatus.set(id, t.status);
+    }
+    const wasActive = activeSync().length > 0, wasNotion = activeNotion().length > 0;
+    S.syncTasks = mine.filter(t => /^Meeting sync/.test(t.title));
+    S.notionTasks = mine.filter(t => /^Notion tickets/.test(t.title));
+    if (finished) reloadSoon();
+    if (wasActive !== activeSync().length > 0 || wasNotion !== activeNotion().length > 0 || finished) render();
+    else {
+      const box = root.querySelector(".syncbox"); if (box) box.outerHTML = syncBoxHTML(P());
+      const tray = root.querySelector(".tray"); if (tray && !S.nsel.size) tray.outerHTML = trayHTML();
+    }
+  }
+
+  async function autoTick() {
+    if (!LOCAL || document.hidden) return;
+    if (S.settings.auto_sync && !activeSync().length) await startSync(null);
+    reload();   // quiet: merges anything a sync (from here or elsewhere) has written so far
+  }
+
+  // ---------- events ----------
+  let toastTimer = 0;
+  function toast(msg) {
+    const el = $("#toast"); el.textContent = msg; el.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 3600);
+  }
+
+  function shiftMonth(month, delta) {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  }
+
+  function scrollToMeeting(mid) {
+    const el = document.getElementById(`mtg-${mid}`);
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+  }
+
+  document.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const act = el.dataset.act, p = P();
+    const li = el.closest(".todo");
+    switch (act) {
+      case "view": setP("view", el.dataset.view); break;
+      case "goto": setP("date", el.dataset.date); setP("view", "notebook"); break;
+      case "open-day": setP("date", el.dataset.date); setP("view", "notebook"); break;
+      case "step": setP("date", addDays(p.date, +el.dataset.delta)); break;
+      case "month": setP("month", el.dataset.delta === "0" ? todayISO().slice(0, 7) : shiftMonth(p.month, +el.dataset.delta)); break;
+      case "mini": {
+        const base = p.view === "calendar" ? p.month : p.date.slice(0, 7);
+        const next = shiftMonth(base, +el.dataset.delta);
+        if (p.view === "calendar") setP("month", next);
+        else setP("date", `${next}-01`);
+        break;
+      }
+      case "toggle": {
+        const id = li.dataset.id, date = li.dataset.date, done = el.getAttribute("aria-checked") !== "true";
+        patchTodo(date, id, t => { t.done = done; });
+        render();
+        mutate(date, { op: "done", todo_id: id, done });
+        break;
+      }
+      case "nsel": {
+        const k = `${li.dataset.date}|${li.dataset.id}`;
+        if (S.nsel.has(k)) S.nsel.delete(k); else S.nsel.set(k, { date: li.dataset.date, id: li.dataset.id });
+        render();
+        break;
+      }
+      case "notion-send": sendToNotion(); break;
+      case "notion-clear": S.nsel.clear(); render(); break;
+      case "del": {
+        const id = li.dataset.id, date = li.dataset.date;
+        S.nsel.delete(`${date}|${id}`);
+        if (S.day && S.day.date === date) S.day.todos = S.day.todos.filter(t => t.id !== id);
+        const row = dayRow(date); if (row) row.todos = row.todos.filter(t => t.id !== id);
+        render();
+        mutate(date, { op: "delete", todo_id: id });
+        break;
+      }
+      case "carry": {
+        const id = li.dataset.id, date = li.dataset.date;
+        S.nsel.delete(`${date}|${id}`);
+        mutate(date, { op: "move", todo_id: id, to_date: todayISO() }).then(() => toast("Moved to today's page"));
+        break;
+      }
+      case "meeting": {
+        const date = el.dataset.date, mid = el.dataset.mid;
+        if (p.view !== "notebook" || p.date !== date) { setP("date", date); setP("view", "notebook"); pendingScroll = mid; }
+        else scrollToMeeting(mid);
+        break;
+      }
+      case "chat": setP("chat", el.dataset.mid); break;
+      case "close": closeDrawer(); break;
+      case "ask": ask(el.dataset.q); break;
+      case "stop": if (C.abort) C.abort.abort(); break;
+      case "deep": deepAsk(); break;
+      case "clear-chat":
+        C.messages = []; renderDrawer();
+        fused.runPython("./chat.py", { date: C.date, meeting_id: C.mid, op: "clear" }, { key: null }).catch(() => {});
+        if (S.day) { const m = S.day.meetings.find(x => x.id === C.mid); if (m) m.chat_count = 0; render(); }
+        break;
+      case "sync": startSync([el.dataset.date]); break;
+      case "task": openTask(el.dataset.key, el.dataset.title || "Meeting sync"); break;
+      case "retry": reload(); break;
+      case "auto": {
+        const on = !S.settings.auto_sync;
+        S.settings.auto_sync = on; render();
+        fused.runPython("./sync.py", { op: "settings", auto_sync: String(on) }, { key: null })
+          .then(r => { S.settings = r.settings; render(); if (on) autoTick(); })
+          .catch(err => toast(err.message));
+        break;
+      }
+    }
+  });
+
+  document.addEventListener("dblclick", e => {
+    const el = e.target.closest(".t-text");
+    if (!el) return;
+    const li = el.closest(".todo"), id = li.dataset.id, date = li.dataset.date;
+    const old = el.textContent;
+    const input = document.createElement("input");
+    input.className = "t-edit"; input.value = old;
+    el.replaceWith(input); input.focus(); input.select();
+    let done = false;
+    const finish = save => {
+      if (done) return; done = true;
+      const v = input.value.trim();
+      if (save && v && v !== old) { patchTodo(date, id, t => { t.text = v; }); render(); mutate(date, { op: "edit", todo_id: id, text: v }); }
+      else render();
+    };
+    input.addEventListener("keydown", k => {
+      if (k.isComposing || k.keyCode === 229) return;
+      if (k.key === "Enter") finish(true);
+      if (k.key === "Escape") { k.stopPropagation(); finish(false); }
+    });
+    input.addEventListener("blur", () => finish(true));
+  });
+
+  document.addEventListener("submit", e => {
+    const f = e.target;
+    e.preventDefault();
+    if (f.dataset.form === "add") {
+      const input = f.elements.text, text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      mutate(f.dataset.date, { op: "add", text }).then(() => { const again = root.querySelector('.add-todo input'); if (again) again.focus(); });
+    } else if (f.dataset.form === "chat") {
+      const ta = $("#chatInput"); const q = ta.value; ta.value = ""; ask(q);
+    }
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.isComposing || e.keyCode === 229) return;   // IME composition: Enter picks a candidate
+    if (e.target.id === "chatInput" && e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault(); const q = e.target.value; e.target.value = ""; ask(q); return;
+    }
+    if (e.key === "Escape" && C.mode) { closeDrawer(); return; }
+    if (e.key === "Escape" && S.nsel.size && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) { S.nsel.clear(); render(); return; }
+    if ((e.key === "Enter" || e.key === " ") && e.target.getAttribute("role") === "button" && e.target.dataset.act) {
+      e.preventDefault(); e.target.click(); return;
+    }
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const p = P();
+    if (p.view === "notebook" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) setP("date", addDays(p.date, e.key === "ArrowLeft" ? -1 : 1));
+  });
+
+  // ---------- param-driven redraw ----------
+  let pendingScroll = null;
+  function draw() {
+    const p = P();
+    if (p.date !== S.loadedDate && p.date !== S.wantDate) { load(p.date).then(afterLoad); render(); return; }
+    render();
+    afterLoad();
+  }
+  function afterLoad() {
+    const p = P();
+    if (pendingScroll && S.loadedDate === p.date) { const mid = pendingScroll; pendingScroll = null; requestAnimationFrame(() => scrollToMeeting(mid)); }
+    const wantChat = LOCAL && p.view === "notebook" && p.chat && S.day && S.day.date === p.date && S.day.meetings.some(m => m.id === p.chat);
+    if (wantChat && (C.mode !== "chat" || C.mid !== p.chat || C.date !== p.date)) openChat(p.date, p.chat);
+    else if (C.mode === "chat" && (!p.chat || p.view !== "notebook" || C.date !== p.date)) closeDrawer();
+  }
+
+  fused.params.onChange(draw);
+  draw();
+
+  if (LOCAL) {
+    const stop = fused.tasks.watch(rows => onTasks(rows));
+    addEventListener("pagehide", () => stop());
+    fused.tasks.list().then(onTasks).catch(() => {});
+    setTimeout(autoTick, 5000);
+    setInterval(autoTick, 10 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && S.booted) reload(); });
+    setInterval(() => { if (activeSync().length || activeNotion().length) reload(); }, 60 * 1000);
+  }
+})();
+</script>
+</body>
+</html>
