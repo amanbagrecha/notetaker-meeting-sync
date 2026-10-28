@@ -327,6 +327,26 @@
     .c-todos { display: none; }
     .tray { left: 50%; }
   }
+
+  @media (max-height: 360px) {
+    .app { grid-template-columns: 220px minmax(0, 1fr); }
+    .side { display: flex; }
+    .side-scroll { padding: 6px 10px 6px; }
+    .brand, .side-h ~ .side-h, .pages, .syncbox { display: none; }
+    .side-h { padding: 4px 4px 2px; }
+    .mini .wd { padding: 2px 0 4px; }
+    .mini button { height: 24px; }
+    .toolbar { display: none; }
+    .stage { padding: 10px 14px 12px; }
+    .sheet { max-width: none; padding-left: 0; }
+    .binding, .washi, .page-head, .sticky, .sec + .sec { display: none; }
+    .paper { min-height: 0; padding: 10px 16px 8px 28px; background-image: none; border-radius: 8px; }
+    .sec { margin-top: 0; }
+    .sec-h { margin-bottom: 4px; }
+    .sec-h h2 { font-size: 16px; }
+    .todo { padding: 6px 6px 6px 4px; }
+    .add-todo { padding-top: 6px; }
+  }
 </style>
 </head>
 <body>
