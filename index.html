@@ -172,8 +172,10 @@
   .cb { width: 18px; height: 18px; flex: none; margin-top: 2px; border: 1.6px solid var(--ink); border-radius: 3px; position: relative; background: var(--paper); }
   .cb:hover { border-color: var(--red); }
   .cb[aria-checked="true"]::after { content: ""; position: absolute; left: 4px; top: -4px; width: 7px; height: 14px; border: solid var(--red); border-width: 0 3px 3px 0; transform: rotate(40deg); }
+  .todo { cursor: pointer; }
+  .todo.th-open { background: var(--chip); border-radius: 4px; }
   .t-body { flex: 1; min-width: 0; }
-  .t-text { font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; cursor: text; }
+  .t-text { font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; }
   .todo.done .t-text { text-decoration: line-through; text-decoration-color: var(--red); color: var(--ink-soft); }
   .t-edit { width: 100%; border: 0; border-bottom: 1.5px solid var(--red); background: transparent; outline: none; font-size: 14.5px; padding: 0; }
   .t-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; align-items: center; font-size: 11.5px; color: var(--ink-soft); }
@@ -189,8 +191,12 @@
   .todo.nsel { background: var(--blue-soft); border-radius: 4px; }
   .todo.nsel .t-actions { opacity: 1; }
   .t-actions button.on { color: var(--blue); font-weight: 600; }
+  .t-actions button.armed, .note-acts button.armed { background: var(--red); color: #fff; }
+  @media (hover: none) { .t-actions, .note-acts { opacity: 1; } }
   a.chip { text-decoration: none; }
   .chip.notion { color: var(--blue); }
+  .chip svg { width: 12px; height: 12px; flex: none; }
+  .chip .chip-sub { opacity: .75; }
   .tray { position: fixed; left: calc(50% + 125px); bottom: 18px; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 15;
     display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 10px; white-space: nowrap;
     background: var(--paper); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 12.5px; }
@@ -307,6 +313,32 @@
   .dr-foot button { color: var(--ink-soft); font-size: 12px; }
   .dr-foot button:hover { color: var(--red); }
   .dr-frame { flex: 1; border: 0; width: 100%; min-height: 0; background: var(--paper); }
+  .dr-foot .hint { color: var(--muted); font-size: 11.5px; }
+
+  /* to-do notes thread */
+  .dr-head .cb { margin-top: 18px; }
+  .th-title { cursor: text; overflow-wrap: anywhere; }
+  .th-title.done { text-decoration: line-through; text-decoration-color: var(--red); color: var(--ink-soft); }
+  .th-title-edit { display: block; width: 100%; margin-top: 2px; padding: 0; border: 0; border-bottom: 1.5px solid var(--red); background: transparent; outline: none; font: 700 16px/1.3 var(--sans); }
+  .th-root { padding: 0 2px 10px; font-size: 13px; }
+  .th-ctx { font-style: italic; color: var(--ink-soft); margin-bottom: 8px; }
+  .th-facts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11.5px; color: var(--ink-soft); }
+  .th-div { display: flex; align-items: center; gap: 10px; margin: 2px 0 12px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-soft); }
+  .th-div::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .th-empty { color: var(--ink-soft); font-size: 13px; padding: 2px; }
+  .note { margin: 0 0 12px; padding: 2px 0 4px 12px; border-left: 2px solid var(--line); }
+  .note:hover, .note:focus-within { border-left-color: var(--red); }
+  .note.pending { opacity: .55; }
+  .note-h { display: flex; align-items: center; gap: 6px; min-height: 22px; font-size: 11px; color: var(--ink-soft); }
+  .note-acts { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+  .note:hover .note-acts, .note:focus-within .note-acts { opacity: 1; }
+  .note-acts button { padding: 1px 6px; border-radius: 4px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+  .note-acts button:hover { background: var(--hover); color: var(--text); }
+  .note-body { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .note-body a { color: var(--blue); }
+  .note-edit { display: block; width: 100%; resize: none; padding: 6px 8px; border: 1px solid var(--red); border-radius: 6px; background: var(--paper); font-size: 13.5px; line-height: 1.5; outline: none; max-height: 260px; }
+  .note-edit-row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+  #noteInput { max-height: 220px; }
   .ctx-pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 9px; background: var(--chip); margin-right: 4px; }
 
   .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 8px; font-size: 12.5px; box-shadow: var(--shadow); max-width: 80vw; }
@@ -346,6 +378,11 @@
     .sec-h h2 { font-size: 16px; }
     .todo { padding: 6px 6px 6px 4px; }
     .add-todo { padding-top: 6px; }
+    .dr-head { padding: 8px 12px 6px 16px; }
+    .dr-head .cb { margin-top: 15px; }
+    .th-root, .dr-foot .hint { display: none; }
+    .log { padding: 8px 14px; }
+    .composer { padding: 6px 12px; }
   }
 </style>
 </head>
@@ -396,6 +433,7 @@
 
   const ICON = `<svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#c8312b"/><rect x="21" y="11" width="31" height="42" rx="4" fill="#fbf8f0"/><g stroke="#2a2824" stroke-width="4" stroke-linecap="round" fill="none"><path d="M14 18h11M14 28h11M14 38h11M14 48h11"/><path d="M29 23h16M29 32h16M29 41h11"/></g></svg>`;
   const BUBBLE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><circle cx="8.5" cy="10.5" r=".6" fill="currentColor"/><circle cx="12" cy="10.5" r=".6" fill="currentColor"/><circle cx="15.5" cy="10.5" r=".6" fill="currentColor"/></svg>`;
+  const NOTE_ICO = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M3 2.5h10a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 13 12H8l-3.5 2.5V12H3a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 3 2.5z"/><path d="M5 6h6M5 8.5h4" stroke-linecap="round"/></svg>`;
   const PAGE_ICO = `<svg class="pg-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4" y="2" width="9.5" height="12" rx="1.5"/><path d="M2.5 4.5h3M2.5 8h3M2.5 11.5h3"/></svg>`;
 
   const root = $("#root");
@@ -420,6 +458,9 @@
     nsel: new Map(), notionTasks: [], sending: false,   // to-dos picked for Notion tickets, keyed "date|id"
   };
   const C = { mode: null, date: null, mid: null, meeting: null, todos: [], transcript: "", messages: [], busy: false, stream: "", abort: null, loading: false, taskUrl: "", taskTitle: "" };
+  // The open to-do's notes thread (drawer mode "todo"); unsent composer text is kept per to-do in `drafts`.
+  const T = { date: null, id: null, todo: null, meeting: null, loading: false, error: "", editing: null, editText: "", stick: false, focus: false, focusEdit: false };
+  const drafts = new Map();
 
   function P() {
     const views = ["notebook", "calendar", "open"];
@@ -429,9 +470,17 @@
     const date = isDate(d) ? d : todayISO();
     const mo = fused.params.get("month");
     const month = /^\d{4}-\d{2}$/.test(mo || "") ? mo : date.slice(0, 7);
-    return { view, date, month, chat: fused.params.get("chat") || "" };
+    const m = /^(\d{4}-\d{2}-\d{2}):(.+)$/.exec(fused.params.get("todo") || "");
+    return { view, date, month, chat: fused.params.get("chat") || "", todo: m ? { date: m[1], id: m[2] } : null };
   }
   const setP = (k, v) => fused.params.set(k, v == null ? null : String(v));
+  // Several params as one change: onChange fires synchronously per set, so hold the redraw until all are written.
+  let batching = false;
+  function setMany(obj) {
+    batching = true;
+    try { for (const [k, v] of Object.entries(obj)) setP(k, v); } finally { batching = false; }
+    draw();
+  }
 
   // ---------- data ----------
   // quiet = background refresh: no loading state, and no re-render when nothing changed.
@@ -459,6 +508,7 @@
     if (S.day && S.day.date === date) S.day.todos.forEach(t => { if (t.id === id) fn(t); });
     const row = S.index.find(r => r.date === date);
     if (row) row.todos.forEach(t => { if (t.id === id) fn(t); });
+    if (threadIs(date, id) && T.todo) { fn(T.todo); renderDrawer(); }
   }
 
   async function mutate(date, args) {
@@ -468,12 +518,15 @@
       const r = await fused.runPython("./todos.py", params, { key: null });
       S.index = r.index;
       if (S.day && S.day.date === r.day.date) S.day = r.day;
+      const fresh = threadIs(r.day.date, T.id) && T.todo && r.day.todos.find(t => t.id === T.id);
+      if (fresh) { T.todo = { ...fresh, notes: T.todo.notes }; renderDrawer(); }
     } catch (e) {
       toast(e.message || "Couldn't save that change");
       await reload();
-      return;
+      return false;
     }
     render();
+    return true;
   }
 
   // ---------- rendering ----------
@@ -613,6 +666,11 @@
     return `<div class="hanko part" title="${d} of ${todos.length} done"><b>${d}/${todos.length}</b><small>DONE</small></div>`;
   }
 
+  function noteMeta(t) {
+    if (Array.isArray(t.notes)) { const last = t.notes[t.notes.length - 1]; return { n: t.notes.length, at: last ? last.at : null }; }
+    return { n: t.note_count || 0, at: t.note_at || null };
+  }
+
   function todoHTML(t, date, titles) {
     const today = todayISO();
     const mt = titles[t.meeting_id] || t.meeting_title || "";
@@ -621,7 +679,9 @@
     const ticket = n.status === "created" && /^https?:/i.test(n.url || "");
     const picked = S.nsel.has(`${date}|${t.id}`);
     const canPick = LOCAL && !ticket && n.status !== "queued";
+    const nm = noteMeta(t);
     const meta = [
+      nm.n ? `<button class="chip" data-act="thread" title="Open this to-do's notes">${NOTE_ICO}${nm.n} note${nm.n > 1 ? "s" : ""}${nm.at ? `<span class="chip-sub">· ${esc(rel(nm.at))}</span>` : ""}</button>` : "",
       ticket ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="Open the Notion ticket">Notion ↗</a>` : "",
       n.status === "queued" ? `<span class="chip notion">→ Notion…</span>` : "",
       n.status === "failed" ? `<span class="chip red" title="${esc(n.error || "")}">Notion failed</span>` : "",
@@ -631,12 +691,12 @@
       t.moved_from ? `<span>carried from ${esc(shortNoWd(t.moved_from))}</span>` : "",
       t.origin === "manual" ? `<span>added by you</span>` : "",
     ].filter(Boolean).join("");
-    return `<li class="todo pr-${esc(t.priority || "medium")} ${t.done ? "done" : ""} ${picked ? "nsel" : ""}" data-id="${esc(t.id)}" data-date="${esc(date)}">
+    return `<li class="todo pr-${esc(t.priority || "medium")} ${t.done ? "done" : ""} ${picked ? "nsel" : ""} ${threadIs(date, t.id) ? "th-open" : ""}" data-id="${esc(t.id)}" data-date="${esc(date)}">
       <button class="cb" role="checkbox" aria-checked="${!!t.done}" data-act="toggle" title="${t.done ? "Mark as not done" : "Mark as done"}"></button>
-      <div class="t-body"><div class="t-text" data-act="edit" title="Double-click to edit">${esc(t.text)}</div>
+      <div class="t-body"><div class="t-text" title="Click to open notes · double-click to edit">${esc(t.text)}</div>
         ${meta ? `<div class="t-meta">${meta}</div>` : ""}
         ${t.context ? `<div class="t-ctx">${esc(t.context)}</div>` : ""}</div>
-      <div class="t-actions">${canPick ? `<button class="${picked ? "on" : ""}" data-act="nsel" aria-pressed="${picked}" title="${picked ? "Unpick" : "Pick this to-do for a Notion ticket"}">${picked ? "✓ Notion" : "→ Notion"}</button>` : ""}${date !== today && !t.done ? `<button data-act="carry" title="Move this to-do to today's page">→ today</button>` : ""}<button data-act="del" title="Delete">✕</button></div>
+      <div class="t-actions"><button data-act="thread" title="Open this to-do's notes — updates, drafts, links">Notes</button>${canPick ? `<button class="${picked ? "on" : ""}" data-act="nsel" aria-pressed="${picked}" title="${picked ? "Unpick" : "Pick this to-do for a Notion ticket"}">${picked ? "✓ Notion" : "→ Notion"}</button>` : ""}${date !== today && !t.done ? `<button data-act="carry" title="Move this to-do to today's page">→ today</button>` : ""}<button data-act="del" data-notes="${nm.n}" title="Delete${nm.n ? ` (and its ${nm.n} note${nm.n > 1 ? "s" : ""})` : ""}">✕</button></div>
     </li>`;
   }
 
@@ -778,6 +838,7 @@
       return;
     }
     drawer.dataset.url = "";
+    if (C.mode === "todo") { renderThread(); return; }
     const m = C.meeting || {};
     const keepDraft = $("#chatInput") ? $("#chatInput").value : "";
     const msgs = C.messages.map(x => x.role === "user"
@@ -805,6 +866,7 @@
     if (C.abort) C.abort.abort();
     Object.assign(C, { mode: "chat", date, mid, meeting: null, todos: [], transcript: "", messages: [], busy: false, stream: "", loading: true });
     renderDrawer();
+    markOpen();
     try {
       const r = await fused.runPython("./chat.py", { date, meeting_id: mid, op: "get" });
       if (C.mid !== mid) return;
@@ -827,14 +889,21 @@
       m.source ? `Source: ${m.source}` : "",
       m.summary ? `Summary: ${m.summary}` : "",
       list("Discussed", m.discussed), list("Decisions", m.decisions),
-      list("The user's to-dos from this meeting", C.todos.map(t => `[${t.done ? "x" : " "}] ${t.text}${t.due ? ` (due ${t.due})` : ""}${t.context ? ` — ${t.context}` : ""}`)),
+      list("The user's to-dos from this meeting", C.todos.map(t => `[${t.done ? "x" : " "}] ${t.text}${t.due ? ` (due ${t.due})` : ""}${t.context ? ` — ${t.context}` : ""}${todoNotes(t)}`)),
       m.notes ? `Notes: ${m.notes}` : "",
       m.details ? `Full meeting notes:\n${m.details}` : "",
       C.transcript ? `Transcript:\n${C.transcript}` : "Transcript: (none stored)",
     ].filter(Boolean).join("\n");
   }
 
-  const SYSTEM = "You are the user's meeting-notebook assistant. You answer questions about ONE meeting using only the meeting record you are given (summary, discussion, decisions, the user's to-dos and the transcript if present). Address the user as \"you\". If the record does not contain the answer, say so in one sentence and suggest the \"Ask with Wispr Flow\" button for a live lookup. Be concise; use short bullet lists for lists. Plain text with light markdown (bold, bullets) only.";
+  function todoNotes(t) {
+    const notes = (t.notes || []).slice(-6);
+    if (!notes.length) return "";
+    const clip = s => (s.length > 600 ? `${s.slice(0, 600)}…` : s).replace(/\n/g, "\n      ");
+    return `\n  Notes the user keeps on this to-do (oldest first):\n${notes.map(n => `    - ${String(n.at || "").slice(0, 10)}: ${clip(n.text)}`).join("\n")}`;
+  }
+
+  const SYSTEM = "You are the user's meeting-notebook assistant. You answer questions about ONE meeting using only the meeting record you are given (summary, discussion, decisions, the user's to-dos with any notes they keep on them, and the transcript if present). Address the user as \"you\". If the record does not contain the answer, say so in one sentence and suggest the \"Ask with Wispr Flow\" button for a live lookup. Be concise; use short bullet lists for lists. Plain text with light markdown (bold, bullets) only.";
 
   async function ask(q) {
     q = (q || "").trim();
@@ -897,17 +966,237 @@ Question: ${q}`;
 
   async function openTask(key, title) {
     Object.assign(C, { mode: "task", taskTitle: title || "Claude task", taskUrl: "" });
-    if (fused.params.get("chat")) setP("chat", null);
+    if (fused.params.get("chat") || fused.params.get("todo")) setMany({ chat: null, todo: null });
     renderDrawer();
+    markOpen();
     try { C.taskUrl = await fused.tasks.ui({ task: key }); } catch (e) { toast(e.message || "Couldn't open the task"); }
     if (C.mode === "task") renderDrawer();
   }
 
   function closeDrawer() {
     if (C.abort) C.abort.abort();
+    const wasThread = C.mode === "todo";
     Object.assign(C, { mode: null, mid: null, date: null, busy: false });
-    if (fused.params.get("chat")) setP("chat", null);
+    Object.assign(T, { date: null, id: null, todo: null, meeting: null, editing: null });
+    if (fused.params.get("chat") || fused.params.get("todo")) setMany({ chat: null, todo: null });
     renderDrawer();
+    if (wasThread) markOpen();
+  }
+
+  // ---------- to-do notes thread ----------
+  const threadIs = (date, id) => C.mode === "todo" && T.date === date && T.id === id;
+  const threadKey = () => `${T.date}:${T.id}`;
+
+  function markOpen() {
+    root.querySelectorAll("li.todo").forEach(li => li.classList.toggle("th-open", threadIs(li.dataset.date, li.dataset.id)));
+  }
+
+  function linkify(s) {
+    const re = /\bhttps?:\/\/[^\s<>"']+/gi;
+    let out = "", last = 0, m;
+    while ((m = re.exec(s))) {
+      let url = m[0].replace(/[.,;:!?'"]+$/, "");
+      if (url.endsWith(")") && !url.includes("(")) url = url.slice(0, -1);
+      out += esc(s.slice(last, m.index)) + `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a>`;
+      last = m.index + url.length;
+      re.lastIndex = last;
+    }
+    return out + esc(s.slice(last));
+  }
+
+  function fullTime(ts) {
+    const d = new Date(ts);
+    return isNaN(d.getTime()) ? "" : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function autosize(ta) {
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight + 2}px`;
+  }
+
+  function localTodo(date, id) {
+    if (S.day && S.day.date === date) {
+      const t = S.day.todos.find(x => x.id === id);
+      return t ? { ...t, notes: (t.notes || []).slice() } : null;
+    }
+    const t = ((dayRow(date) || {}).todos || []).find(x => x.id === id);
+    return t ? { ...t, notes: t.note_count ? undefined : [] } : null;
+  }
+
+  function openThreadParam(date, id) {
+    setMany({ chat: null, todo: `${date}:${id}` });
+  }
+
+  function openThread(date, id) {
+    if (C.abort) C.abort.abort();
+    Object.assign(C, { mode: "todo", mid: null, date: null, busy: false, stream: "", abort: null });
+    const todo = localTodo(date, id);
+    const meeting = todo && S.day && S.day.date === date ? S.day.meetings.find(m => m.id === todo.meeting_id) || null : null;
+    Object.assign(T, { date, id, todo, meeting, loading: true, error: "", editing: null, editText: "", stick: true, focus: true });
+    renderDrawer();
+    markOpen();
+    noteCall(date, id, { op: "get" }).then(ok => {
+      if (!threadIs(date, id)) return;
+      T.loading = false;
+      if (!ok) T.error = "Couldn't open this to-do's notes — it may have been moved or deleted.";
+      renderDrawer();
+    });
+  }
+
+  // Every notes.py call goes through one queue so writes land in order. The drawer only adopts the
+  // server's copy once nothing else is queued, so optimistic edits don't flicker back and forth.
+  let noteQueue = Promise.resolve(), queued = 0;
+  function noteCall(date, id, args) {
+    queued++;
+    const run = async () => {
+      let r = null, err = null;
+      try { r = await fused.runPython("./notes.py", { date, todo_id: id, ...args }, { key: null }); }
+      catch (e) { err = e; }
+      queued--;
+      if (err && args.op !== "get") {
+        toast(err.message || "Couldn't save the note");
+        if (!queued) { try { r = await fused.runPython("./notes.py", { date, todo_id: id, op: "get" }, { key: null }); } catch (e) { r = null; } }
+      }
+      if (r) adoptThread(r, args.op !== "get");
+      return !err;
+    };
+    const p = noteQueue.then(run);
+    noteQueue = p.catch(() => {});
+    return p;
+  }
+
+  function adoptThread(r, changed) {
+    const t = r.todo, notes = t.notes || [];
+    if (r.index) S.index = r.index;
+    if (S.day && S.day.date === r.date) S.day.todos.forEach(x => { if (x.id === t.id) x.notes = notes; });
+    if (threadIs(r.date, t.id) && !queued) {
+      T.todo = { ...t, notes };
+      if (r.meeting) T.meeting = r.meeting;
+      T.error = "";
+      renderDrawer();
+    }
+    if (changed) render();
+  }
+
+  function addNote(text) {
+    text = (text || "").trim();
+    if (!text || C.mode !== "todo" || !T.todo) return;
+    const { date, id } = T;
+    if (!Array.isArray(T.todo.notes)) T.todo.notes = [];
+    T.todo.notes.push({ id: `tmp-${Date.now()}`, text, at: new Date().toISOString(), pending: true });
+    drafts.delete(threadKey());
+    T.stick = true;
+    renderDrawer();
+    noteCall(date, id, { op: "add", text }).then(ok => {
+      if (!ok && threadIs(date, id) && !drafts.get(threadKey())) { drafts.set(threadKey(), text); renderDrawer(); }
+    });
+  }
+
+  function saveNoteEdit() {
+    const nid = T.editing;
+    if (!nid || !T.todo) return;
+    const ed = drawer.querySelector(".note-edit");
+    const text = (ed ? ed.value : T.editText).trim();
+    const note = (T.todo.notes || []).find(x => x.id === nid);
+    T.editing = null;
+    if (note && text && text !== note.text) {
+      note.text = text; note.edited_at = new Date().toISOString();
+      noteCall(T.date, T.id, { op: "edit", note_id: nid, text });
+    }
+    renderDrawer();
+  }
+
+  function deleteNote(nid) {
+    if (!T.todo) return;
+    T.todo.notes = (T.todo.notes || []).filter(x => x.id !== nid);
+    renderDrawer();
+    noteCall(T.date, T.id, { op: "delete", note_id: nid });
+  }
+
+  // Two-step button for destructive actions: first click arms it, a second click within 3 s confirms.
+  function armed(el, label) {
+    if (el.dataset.armed === "1") return true;
+    const old = el.textContent;
+    el.dataset.armed = "1"; el.textContent = label; el.classList.add("armed");
+    setTimeout(() => { if (el.isConnected) { el.dataset.armed = ""; el.textContent = old; el.classList.remove("armed"); } }, 3000);
+    return false;
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall back below */ }
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
+  function renderThread() {
+    const head = (kick, title) => `<div class="dr-head"><div><div class="kick">${kick}</div><h3>${title}</h3></div><button class="x" data-act="close" title="Close (Esc)">×</button></div>`;
+    const t = T.todo;
+    if (!t) {
+      drawer.innerHTML = head("To-do notes", T.loading ? "Opening…" : "To-do not found") +
+        `<div class="log scroll">${T.loading ? `<div class="th-empty">Opening the to-do…</div>` : `<div class="msg err">${esc(T.error || "This to-do isn't on that page any more.")}</div>`}</div>`;
+      return;
+    }
+    const prevLog = $("#thLog"), keepScroll = prevLog ? prevLog.scrollTop : 0;
+    const prevIn = $("#noteInput"), inFocus = prevIn && document.activeElement === prevIn;
+    const prevEd = drawer.querySelector(".note-edit"), edFocus = prevEd && document.activeElement === prevEd;
+    if (prevEd) T.editText = prevEd.value;
+
+    const notes = t.notes || [];
+    const n = t.notion || {}, today = todayISO();
+    const mt = (T.meeting && T.meeting.title) || t.meeting_title || "";
+    const facts = [
+      mt ? `<button class="chip" data-act="meeting" data-mid="${esc(t.meeting_id)}" data-date="${esc(t.moved_from || T.date)}" title="Show meeting">${esc(mt)}</button>` : "",
+      t.priority === "high" ? `<span class="chip red">high</span>` : t.priority === "low" ? `<span class="chip">low</span>` : "",
+      t.due ? `<span class="chip ${!t.done && t.due < today ? "red" : ""}">due ${esc(shortNoWd(t.due))}</span>` : "",
+      n.status === "created" && /^https?:/i.test(n.url || "") ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="Open the Notion ticket">Notion ↗</a>` : "",
+      t.moved_from ? `<span>carried from ${esc(shortNoWd(t.moved_from))}</span>` : "",
+      t.origin === "manual" ? `<span>added by you</span>` : "",
+    ].filter(Boolean).join("");
+    const items = notes.map(x => {
+      if (T.editing === x.id) {
+        return `<div class="note" data-nid="${esc(x.id)}"><textarea class="note-edit" rows="2" aria-label="Edit note">${esc(T.editText)}</textarea>
+          <div class="note-edit-row"><button type="button" class="tb-btn" data-act="note-cancel">Cancel</button><button type="button" class="btn" data-act="note-save">Save</button></div></div>`;
+      }
+      return `<div class="note ${x.pending ? "pending" : ""}" data-nid="${esc(x.id)}">
+        <div class="note-h"><span title="${esc(fullTime(x.at))}">${esc(rel(x.at))}</span>${x.edited_at ? `<span title="Edited ${esc(fullTime(x.edited_at))}">· edited</span>` : ""}
+          ${x.pending ? "" : `<span class="note-acts"><button data-act="note-copy" title="Copy this note">Copy</button><button data-act="note-edit">Edit</button><button data-act="note-del">Delete</button></span>`}</div>
+        <div class="note-body">${linkify(x.text)}</div></div>`;
+    }).join("");
+    const body = !Array.isArray(t.notes) ? `<div class="th-empty">Loading notes…</div>`
+      : notes.length ? items
+      : `<div class="th-empty">Nothing here yet. Keep updates, drafts and links for this to-do here — they stay off the notebook page.</div>`;
+
+    drawer.innerHTML = `<div class="dr-head">
+        <button class="cb" role="checkbox" aria-checked="${!!t.done}" data-act="th-toggle" title="${t.done ? "Mark as not done" : "Mark as done"}"></button>
+        <div><div class="kick">To-do · ${esc(short(T.date))}</div><h3 class="th-title ${t.done ? "done" : ""}" data-act="th-title" title="Click to edit">${esc(t.text)}</h3></div>
+        <button class="x" data-act="close" title="Close (Esc)">×</button></div>
+      <div class="log scroll" id="thLog">
+        ${t.context || facts ? `<div class="th-root">${t.context ? `<div class="th-ctx">${esc(t.context)}</div>` : ""}${facts ? `<div class="th-facts">${facts}</div>` : ""}</div>` : ""}
+        <div class="th-div">${notes.length ? `${notes.length} note${notes.length > 1 ? "s" : ""}` : "Notes"}</div>
+        ${body}
+        ${T.error ? `<div class="msg err">${esc(T.error)}</div>` : ""}
+      </div>
+      <form class="composer" data-form="note"><textarea id="noteInput" rows="2" placeholder="Add an update, a draft or a link…" aria-label="Add a note"></textarea><button class="btn">Add</button></form>
+      <div class="dr-foot"><span class="hint">Enter to add · Shift+Enter for a new line · only you see these</span></div>`;
+
+    const ta = $("#noteInput");
+    ta.value = drafts.get(threadKey()) || "";
+    autosize(ta);
+    const log = $("#thLog");
+    log.scrollTop = T.stick ? log.scrollHeight : keepScroll;
+    T.stick = false;
+    const ed = drawer.querySelector(".note-edit");
+    if (ed) {
+      autosize(ed);
+      if (edFocus || T.focusEdit) { ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); }
+    } else if (inFocus || edFocus || T.focus) ta.focus();
+    T.focus = false; T.focusEdit = false;
   }
 
   // ---------- sync (Claude task with the Wispr Flow MCP) ----------
@@ -1004,12 +1293,85 @@ Question: ${q}`;
     el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
   }
 
+  // A click on a to-do row opens its notes. On the text itself, wait out a possible double-click (= edit).
+  let rowTimer = 0;
+  function rowClick(e) {
+    const li = e.target.closest("li.todo");
+    if (!li || e.target.closest("a, input, textarea") || String(window.getSelection() || "")) return;
+    clearTimeout(rowTimer);
+    if (e.detail > 1) return;
+    const { date, id } = li.dataset;
+    if (e.target.closest(".t-text")) rowTimer = setTimeout(() => openThreadParam(date, id), 250);
+    else openThreadParam(date, id);
+  }
+
+  function noteOf(el) {
+    const box = el.closest(".note");
+    return box && T.todo ? (T.todo.notes || []).find(x => x.id === box.dataset.nid) : null;
+  }
+
+  function editInPlace(el, cls, old, save) {
+    const input = document.createElement("input");
+    input.className = cls; input.value = old;
+    el.replaceWith(input); input.focus(); input.select();
+    let done = false;
+    const finish = ok => {
+      if (done) return; done = true;
+      const v = input.value.trim();
+      save(ok && v && v !== old ? v : null);
+    };
+    input.addEventListener("keydown", k => {
+      if (k.isComposing || k.keyCode === 229) return;
+      if (k.key === "Enter") finish(true);
+      if (k.key === "Escape") { k.stopPropagation(); finish(false); }
+    });
+    input.addEventListener("blur", () => finish(true));
+  }
+
   document.addEventListener("click", e => {
     const el = e.target.closest("[data-act]");
-    if (!el) return;
+    if (!el) { rowClick(e); return; }
     const act = el.dataset.act, p = P();
     const li = el.closest(".todo");
     switch (act) {
+      case "thread": openThreadParam(li.dataset.date, li.dataset.id); break;
+      case "th-toggle": {
+        if (!T.todo) break;
+        const { date, id } = T, done = !T.todo.done;
+        patchTodo(date, id, t => { t.done = done; });
+        render();
+        mutate(date, { op: "done", todo_id: id, done });
+        break;
+      }
+      case "th-title": {
+        if (!T.todo) break;
+        const { date, id } = T;
+        editInPlace(el, "th-title-edit", T.todo.text, v => {
+          if (v) { patchTodo(date, id, t => { t.text = v; }); render(); mutate(date, { op: "edit", todo_id: id, text: v }); }
+          else renderDrawer();
+        });
+        break;
+      }
+      case "note-copy": {
+        const nt = noteOf(el);
+        if (nt) copyText(nt.text).then(ok => toast(ok ? "Copied" : "Couldn't copy — select the text instead"));
+        break;
+      }
+      case "note-edit": {
+        const nt = noteOf(el);
+        if (!nt) break;
+        if (T.editing) saveNoteEdit();
+        Object.assign(T, { editing: nt.id, editText: nt.text, focusEdit: true });
+        renderDrawer();
+        break;
+      }
+      case "note-cancel": T.editing = null; renderDrawer(); break;
+      case "note-save": saveNoteEdit(); break;
+      case "note-del": {
+        const nt = noteOf(el);
+        if (nt && armed(el, "Delete?")) deleteNote(nt.id);
+        break;
+      }
       case "view": setP("view", el.dataset.view); break;
       case "goto": setP("date", el.dataset.date); setP("view", "notebook"); break;
       case "open-day": setP("date", el.dataset.date); setP("view", "notebook"); break;
@@ -1038,7 +1400,9 @@ Question: ${q}`;
       case "notion-send": sendToNotion(); break;
       case "notion-clear": S.nsel.clear(); render(); break;
       case "del": {
-        const id = li.dataset.id, date = li.dataset.date;
+        const id = li.dataset.id, date = li.dataset.date, nn = +el.dataset.notes || 0;
+        if (nn && !armed(el, `Delete with ${nn} note${nn > 1 ? "s" : ""}?`)) break;
+        if (threadIs(date, id)) closeDrawer();
         S.nsel.delete(`${date}|${id}`);
         if (S.day && S.day.date === date) S.day.todos = S.day.todos.filter(t => t.id !== id);
         const row = dayRow(date); if (row) row.todos = row.todos.filter(t => t.id !== id);
@@ -1047,9 +1411,13 @@ Question: ${q}`;
         break;
       }
       case "carry": {
-        const id = li.dataset.id, date = li.dataset.date;
+        const id = li.dataset.id, date = li.dataset.date, today = todayISO();
         S.nsel.delete(`${date}|${id}`);
-        mutate(date, { op: "move", todo_id: id, to_date: todayISO() }).then(() => toast("Moved to today's page"));
+        mutate(date, { op: "move", todo_id: id, to_date: today }).then(ok => {
+          if (!ok) return;
+          toast("Moved to today's page");
+          if (threadIs(date, id)) setP("todo", `${today}:${id}`);
+        });
         break;
       }
       case "meeting": {
@@ -1058,7 +1426,7 @@ Question: ${q}`;
         else scrollToMeeting(mid);
         break;
       }
-      case "chat": setP("chat", el.dataset.mid); break;
+      case "chat": setMany({ todo: null, chat: el.dataset.mid }); break;
       case "close": closeDrawer(); break;
       case "ask": ask(el.dataset.q); break;
       case "stop": if (C.abort) C.abort.abort(); break;
@@ -1083,26 +1451,25 @@ Question: ${q}`;
   });
 
   document.addEventListener("dblclick", e => {
+    clearTimeout(rowTimer);
     const el = e.target.closest(".t-text");
     if (!el) return;
     const li = el.closest(".todo"), id = li.dataset.id, date = li.dataset.date;
-    const old = el.textContent;
-    const input = document.createElement("input");
-    input.className = "t-edit"; input.value = old;
-    el.replaceWith(input); input.focus(); input.select();
-    let done = false;
-    const finish = save => {
-      if (done) return; done = true;
-      const v = input.value.trim();
-      if (save && v && v !== old) { patchTodo(date, id, t => { t.text = v; }); render(); mutate(date, { op: "edit", todo_id: id, text: v }); }
+    editInPlace(el, "t-edit", el.textContent, v => {
+      if (v) { patchTodo(date, id, t => { t.text = v; }); render(); mutate(date, { op: "edit", todo_id: id, text: v }); }
       else render();
-    };
-    input.addEventListener("keydown", k => {
-      if (k.isComposing || k.keyCode === 229) return;
-      if (k.key === "Enter") finish(true);
-      if (k.key === "Escape") { k.stopPropagation(); finish(false); }
     });
-    input.addEventListener("blur", () => finish(true));
+  });
+
+  document.addEventListener("input", e => {
+    const ta = e.target;
+    if (ta.id === "noteInput" && C.mode === "todo") {
+      if (ta.value) drafts.set(threadKey(), ta.value); else drafts.delete(threadKey());
+      autosize(ta);
+    } else if (ta.classList && ta.classList.contains("note-edit")) {
+      T.editText = ta.value;
+      autosize(ta);
+    }
   });
 
   document.addEventListener("submit", e => {
@@ -1115,6 +1482,8 @@ Question: ${q}`;
       mutate(f.dataset.date, { op: "add", text }).then(() => { const again = root.querySelector('.add-todo input'); if (again) again.focus(); });
     } else if (f.dataset.form === "chat") {
       const ta = $("#chatInput"); const q = ta.value; ta.value = ""; ask(q);
+    } else if (f.dataset.form === "note") {
+      const ta = $("#noteInput"); const v = ta.value; ta.value = ""; addNote(v);
     }
   });
 
@@ -1122,6 +1491,13 @@ Question: ${q}`;
     if (e.isComposing || e.keyCode === 229) return;   // IME composition: Enter picks a candidate
     if (e.target.id === "chatInput" && e.key === "Enter" && !e.shiftKey) {
       e.preventDefault(); const q = e.target.value; e.target.value = ""; ask(q); return;
+    }
+    if (e.target.id === "noteInput" && e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault(); const v = e.target.value; e.target.value = ""; addNote(v); return;
+    }
+    if (e.target.classList && e.target.classList.contains("note-edit")) {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNoteEdit(); return; }
+      if (e.key === "Escape") { e.preventDefault(); T.editing = null; renderDrawer(); return; }
     }
     if (e.key === "Escape" && C.mode) { closeDrawer(); return; }
     if (e.key === "Escape" && S.nsel.size && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) { S.nsel.clear(); render(); return; }
@@ -1135,19 +1511,25 @@ Question: ${q}`;
   });
 
   // ---------- param-driven redraw ----------
-  let pendingScroll = null;
+  // The drawer params (chat, todo) don't change the page itself, so they skip the whole-page repaint.
+  let pendingScroll = null, drawnKey = "";
   function draw() {
-    const p = P();
-    if (p.date !== S.loadedDate && p.date !== S.wantDate) { load(p.date).then(afterLoad); render(); return; }
-    render();
+    if (batching) return;
+    const p = P(), key = `${p.view}|${p.date}|${p.month}`;
+    if (p.date !== S.loadedDate && p.date !== S.wantDate) { drawnKey = key; load(p.date).then(afterLoad); render(); return; }
+    if (key !== drawnKey || !S.booted) render();
+    drawnKey = key;
     afterLoad();
   }
   function afterLoad() {
     const p = P();
     if (pendingScroll && S.loadedDate === p.date) { const mid = pendingScroll; pendingScroll = null; requestAnimationFrame(() => scrollToMeeting(mid)); }
-    const wantChat = LOCAL && p.view === "notebook" && p.chat && S.day && S.day.date === p.date && S.day.meetings.some(m => m.id === p.chat);
-    if (wantChat && (C.mode !== "chat" || C.mid !== p.chat || C.date !== p.date)) openChat(p.date, p.chat);
-    else if (C.mode === "chat" && (!p.chat || p.view !== "notebook" || C.date !== p.date)) closeDrawer();
+    // A to-do's notes stay open on its own page and in the open-to-dos list; elsewhere they close.
+    const th = p.todo && (p.view === "open" || (p.view === "notebook" && p.todo.date === p.date)) ? p.todo : null;
+    const wantChat = !th && LOCAL && p.view === "notebook" && p.chat && S.day && S.day.date === p.date && S.day.meetings.some(m => m.id === p.chat);
+    if (th) { if (!threadIs(th.date, th.id)) openThread(th.date, th.id); }
+    else if (wantChat) { if (C.mode !== "chat" || C.mid !== p.chat || C.date !== p.date) openChat(p.date, p.chat); }
+    else if (C.mode === "todo" || (C.mode === "chat" && (!p.chat || p.view !== "notebook" || C.date !== p.date))) closeDrawer();
   }
 
   fused.params.onChange(draw);
