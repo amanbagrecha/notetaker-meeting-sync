@@ -18,8 +18,9 @@ and `notebook.py` stamps each to-do's `notion` field (`{"status": "queued" | "cr
 
 Each to-do can carry a private notes thread (`notes`: `[{"id", "text", "at", "edited_at"?}]`, oldest first) — updates,
 drafts, links the user keeps on it. It lives inside the to-do record, so it moves with the to-do, goes away when the
-to-do is deleted, and syncs never touch it. The page index only carries `note_count` / `note_at`, never the text, and
-notes are not sent to Notion.
+to-do is deleted, and syncs never touch it. The page index only carries `note_count` / `note_at`, never the text.
+Notes are not sent to Notion; the page's "Talk to meeting" chat does include the latest notes of that meeting's
+to-dos as context for its AI call.
 
 ## notebook.py
 Returns the page index and one day page. Merges any finished sync and Notion results first (writes `.fused/data/days/`).

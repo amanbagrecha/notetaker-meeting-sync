@@ -458,7 +458,6 @@
     nsel: new Map(), notionTasks: [], sending: false,   // to-dos picked for Notion tickets, keyed "date|id"
   };
   const C = { mode: null, date: null, mid: null, meeting: null, todos: [], transcript: "", messages: [], busy: false, stream: "", abort: null, loading: false, taskUrl: "", taskTitle: "" };
-  // The open to-do's notes thread (drawer mode "todo"); unsent composer text is kept per to-do in `drafts`.
   const T = { date: null, id: null, todo: null, meeting: null, loading: false, error: "", editing: null, editText: "", stick: false, focus: false, focusEdit: false };
   const drafts = new Map();
 
@@ -474,7 +473,6 @@
     return { view, date, month, chat: fused.params.get("chat") || "", todo: m ? { date: m[1], id: m[2] } : null };
   }
   const setP = (k, v) => fused.params.set(k, v == null ? null : String(v));
-  // Several params as one change: onChange fires synchronously per set, so hold the redraw until all are written.
   let batching = false;
   function setMany(obj) {
     batching = true;
@@ -492,6 +490,7 @@
       const sig = JSON.stringify([r.index, r.day, r.settings, r.problems]);
       const same = quiet && !S.error && date === S.loadedDate && sig === S.sig;
       Object.assign(S, { index: r.index, day: r.day, settings: r.settings, sync: r.sync, pending: r.inbox_pending, problems: r.problems, loadedDate: date, error: null, sig });
+      refreshThread();
       if (r.merged && r.merged.length) toast(`Synced ${r.merged.map(shortNoWd).join(", ")}`);
       if (same) return;
     } catch (e) {
@@ -518,10 +517,10 @@
       const r = await fused.runPython("./todos.py", params, { key: null });
       S.index = r.index;
       if (S.day && S.day.date === r.day.date) S.day = r.day;
-      const fresh = threadIs(r.day.date, T.id) && T.todo && r.day.todos.find(t => t.id === T.id);
-      if (fresh) { T.todo = { ...fresh, notes: T.todo.notes }; renderDrawer(); }
+      refreshThread();
     } catch (e) {
       toast(e.message || "Couldn't save that change");
+      S.sig = null;
       await reload();
       return false;
     }
@@ -671,18 +670,16 @@
     return { n: t.note_count || 0, at: t.note_at || null };
   }
 
-  function todoHTML(t, date, titles) {
-    const today = todayISO();
-    const mt = titles[t.meeting_id] || t.meeting_title || "";
-    const late = t.due && !t.done && t.due < today;
+  function hasTicket(t) {
     const n = t.notion || {};
-    const ticket = n.status === "created" && /^https?:/i.test(n.url || "");
-    const picked = S.nsel.has(`${date}|${t.id}`);
-    const canPick = LOCAL && !ticket && n.status !== "queued";
-    const nm = noteMeta(t);
-    const meta = [
-      nm.n ? `<button class="chip" data-act="thread" title="Open this to-do's notes">${NOTE_ICO}${nm.n} note${nm.n > 1 ? "s" : ""}${nm.at ? `<span class="chip-sub">· ${esc(rel(nm.at))}</span>` : ""}</button>` : "",
-      ticket ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="Open the Notion ticket">Notion ↗</a>` : "",
+    return n.status === "created" && /^https?:/i.test(n.url || "");
+  }
+
+  function todoChips(t, date, mt) {
+    const n = t.notion || {};
+    const late = t.due && !t.done && t.due < todayISO();
+    return [
+      hasTicket(t) ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="Open the Notion ticket">Notion ↗</a>` : "",
       n.status === "queued" ? `<span class="chip notion">→ Notion…</span>` : "",
       n.status === "failed" ? `<span class="chip red" title="${esc(n.error || "")}">Notion failed</span>` : "",
       mt ? `<button class="chip" data-act="meeting" data-mid="${esc(t.meeting_id)}" data-date="${esc(t.moved_from || date)}" title="Show meeting">${esc(mt)}</button>` : "",
@@ -691,6 +688,16 @@
       t.moved_from ? `<span>carried from ${esc(shortNoWd(t.moved_from))}</span>` : "",
       t.origin === "manual" ? `<span>added by you</span>` : "",
     ].filter(Boolean).join("");
+  }
+
+  function todoHTML(t, date, titles) {
+    const today = todayISO();
+    const n = t.notion || {};
+    const picked = S.nsel.has(`${date}|${t.id}`);
+    const canPick = LOCAL && !hasTicket(t) && n.status !== "queued";
+    const nm = noteMeta(t);
+    const meta = (nm.n ? `<button class="chip" data-act="thread" title="Open this to-do's notes">${NOTE_ICO}${nm.n} note${nm.n > 1 ? "s" : ""}${nm.at ? `<span class="chip-sub">· ${esc(rel(nm.at))}</span>` : ""}</button>` : "")
+      + todoChips(t, date, titles[t.meeting_id] || t.meeting_title || "");
     return `<li class="todo pr-${esc(t.priority || "medium")} ${t.done ? "done" : ""} ${picked ? "nsel" : ""} ${threadIs(date, t.id) ? "th-open" : ""}" data-id="${esc(t.id)}" data-date="${esc(date)}">
       <button class="cb" role="checkbox" aria-checked="${!!t.done}" data-act="toggle" title="${t.done ? "Mark as not done" : "Mark as done"}"></button>
       <div class="t-body"><div class="t-text" title="Click to open notes · double-click to edit">${esc(t.text)}</div>
@@ -1032,10 +1039,12 @@ Question: ${q}`;
     if (C.abort) C.abort.abort();
     Object.assign(C, { mode: "todo", mid: null, date: null, busy: false, stream: "", abort: null });
     const todo = localTodo(date, id);
-    const meeting = todo && S.day && S.day.date === date ? S.day.meetings.find(m => m.id === todo.meeting_id) || null : null;
-    Object.assign(T, { date, id, todo, meeting, loading: true, error: "", editing: null, editText: "", stick: true, focus: true });
+    const known = !!todo && Array.isArray(todo.notes) && !!S.day && S.day.date === date;
+    const meeting = known ? S.day.meetings.find(m => m.id === todo.meeting_id) || null : null;
+    Object.assign(T, { date, id, todo, meeting, loading: !known, error: "", editing: null, editText: "", stick: true, focus: true });
     renderDrawer();
     markOpen();
+    if (known) return;
     noteCall(date, id, { op: "get" }).then(ok => {
       if (!threadIs(date, id)) return;
       T.loading = false;
@@ -1044,8 +1053,23 @@ Question: ${q}`;
     });
   }
 
-  // Every notes.py call goes through one queue so writes land in order. The drawer only adopts the
-  // server's copy once nothing else is queued, so optimistic edits don't flicker back and forth.
+  function refreshThread() {
+    if (C.mode !== "todo" || !T.todo) return;
+    const full = S.day && S.day.date === T.date ? S.day.todos.find(x => x.id === T.id) : null;
+    const src = full || ((dayRow(T.date) || {}).todos || []).find(x => x.id === T.id);
+    if (!src) {
+      const gone = (S.day && S.day.date === T.date) || dayRow(T.date);
+      if (gone && !T.error) { T.error = "This to-do is no longer on that page — it was moved or deleted."; renderDrawer(); }
+      return;
+    }
+    const mine = T.todo.notes;
+    const settled = full && !queued && !T.editing && !(mine || []).some(x => x.pending);
+    const next = { ...T.todo, ...src, notes: settled ? (full.notes || []).slice() : mine };
+    if (JSON.stringify(next) === JSON.stringify(T.todo)) return;
+    T.todo = next;
+    renderDrawer();
+  }
+
   let noteQueue = Promise.resolve(), queued = 0;
   function noteCall(date, id, args) {
     queued++;
@@ -1069,9 +1093,9 @@ Question: ${q}`;
   function adoptThread(r, changed) {
     const t = r.todo, notes = t.notes || [];
     if (r.index) S.index = r.index;
-    if (S.day && S.day.date === r.date) S.day.todos.forEach(x => { if (x.id === t.id) x.notes = notes; });
+    if (S.day && S.day.date === r.date) S.day.todos.forEach(x => { if (x.id === t.id) x.notes = notes.slice(); });
     if (threadIs(r.date, t.id) && !queued) {
-      T.todo = { ...t, notes };
+      T.todo = { ...t, notes: notes.slice() };
       if (r.meeting) T.meeting = r.meeting;
       T.error = "";
       renderDrawer();
@@ -1082,14 +1106,20 @@ Question: ${q}`;
   function addNote(text) {
     text = (text || "").trim();
     if (!text || C.mode !== "todo" || !T.todo) return;
-    const { date, id } = T;
+    const { date, id } = T, key = threadKey(), tmp = `tmp-${Date.now()}`;
     if (!Array.isArray(T.todo.notes)) T.todo.notes = [];
-    T.todo.notes.push({ id: `tmp-${Date.now()}`, text, at: new Date().toISOString(), pending: true });
-    drafts.delete(threadKey());
+    T.todo.notes.push({ id: tmp, text, at: new Date().toISOString(), pending: true });
+    drafts.delete(key);
     T.stick = true;
     renderDrawer();
     noteCall(date, id, { op: "add", text }).then(ok => {
-      if (!ok && threadIs(date, id) && !drafts.get(threadKey())) { drafts.set(threadKey(), text); renderDrawer(); }
+      if (ok) return;
+      if (!drafts.get(key)) drafts.set(key, text);
+      if (!threadIs(date, id) || !T.todo) return;
+      T.todo.notes = (T.todo.notes || []).filter(x => x.id !== tmp);
+      const ta = $("#noteInput");
+      if (ta && !ta.value) { ta.value = text; autosize(ta); }
+      renderDrawer();
     });
   }
 
@@ -1114,7 +1144,6 @@ Question: ${q}`;
     noteCall(T.date, T.id, { op: "delete", note_id: nid });
   }
 
-  // Two-step button for destructive actions: first click arms it, a second click within 3 s confirms.
   function armed(el, label) {
     if (el.dataset.armed === "1") return true;
     const old = el.textContent;
@@ -1124,7 +1153,7 @@ Question: ${q}`;
   }
 
   async function copyText(text) {
-    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall back below */ }
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { }
     const ta = document.createElement("textarea");
     ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
     document.body.appendChild(ta); ta.select();
@@ -1134,30 +1163,15 @@ Question: ${q}`;
     return ok;
   }
 
-  function renderThread() {
-    const head = (kick, title) => `<div class="dr-head"><div><div class="kick">${kick}</div><h3>${title}</h3></div><button class="x" data-act="close" title="Close (Esc)">×</button></div>`;
-    const t = T.todo;
-    if (!t) {
-      drawer.innerHTML = head("To-do notes", T.loading ? "Opening…" : "To-do not found") +
-        `<div class="log scroll">${T.loading ? `<div class="th-empty">Opening the to-do…</div>` : `<div class="msg err">${esc(T.error || "This to-do isn't on that page any more.")}</div>`}</div>`;
-      return;
-    }
-    const prevLog = $("#thLog"), keepScroll = prevLog ? prevLog.scrollTop : 0;
-    const prevIn = $("#noteInput"), inFocus = prevIn && document.activeElement === prevIn;
-    const prevEd = drawer.querySelector(".note-edit"), edFocus = prevEd && document.activeElement === prevEd;
-    if (prevEd) T.editText = prevEd.value;
+  function threadHeadHTML(t) {
+    return `<button class="cb" role="checkbox" aria-checked="${!!t.done}" data-act="th-toggle" title="${t.done ? "Mark as not done" : "Mark as done"}"></button>
+      <div><div class="kick">To-do · ${esc(short(T.date))}</div><h3 class="th-title ${t.done ? "done" : ""}" data-act="th-title" title="Click to edit">${esc(t.text)}</h3></div>
+      <button class="x" data-act="close" title="Close (Esc)">×</button>`;
+  }
 
+  function threadLogHTML(t) {
     const notes = t.notes || [];
-    const n = t.notion || {}, today = todayISO();
-    const mt = (T.meeting && T.meeting.title) || t.meeting_title || "";
-    const facts = [
-      mt ? `<button class="chip" data-act="meeting" data-mid="${esc(t.meeting_id)}" data-date="${esc(t.moved_from || T.date)}" title="Show meeting">${esc(mt)}</button>` : "",
-      t.priority === "high" ? `<span class="chip red">high</span>` : t.priority === "low" ? `<span class="chip">low</span>` : "",
-      t.due ? `<span class="chip ${!t.done && t.due < today ? "red" : ""}">due ${esc(shortNoWd(t.due))}</span>` : "",
-      n.status === "created" && /^https?:/i.test(n.url || "") ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="Open the Notion ticket">Notion ↗</a>` : "",
-      t.moved_from ? `<span>carried from ${esc(shortNoWd(t.moved_from))}</span>` : "",
-      t.origin === "manual" ? `<span>added by you</span>` : "",
-    ].filter(Boolean).join("");
+    const facts = todoChips(t, T.date, (T.meeting && T.meeting.title) || t.meeting_title || "");
     const items = notes.map(x => {
       if (T.editing === x.id) {
         return `<div class="note" data-nid="${esc(x.id)}"><textarea class="note-edit" rows="2" aria-label="Edit note">${esc(T.editText)}</textarea>
@@ -1171,31 +1185,47 @@ Question: ${q}`;
     const body = !Array.isArray(t.notes) ? `<div class="th-empty">Loading notes…</div>`
       : notes.length ? items
       : `<div class="th-empty">Nothing here yet. Keep updates, drafts and links for this to-do here — they stay off the notebook page.</div>`;
+    return `${t.context || facts ? `<div class="th-root">${t.context ? `<div class="th-ctx">${esc(t.context)}</div>` : ""}${facts ? `<div class="th-facts">${facts}</div>` : ""}</div>` : ""}
+      <div class="th-div">${notes.length ? `${notes.length} note${notes.length > 1 ? "s" : ""}` : "Notes"}</div>
+      ${body}
+      ${T.error ? `<div class="msg err">${esc(T.error)}</div>` : ""}`;
+  }
 
-    drawer.innerHTML = `<div class="dr-head">
-        <button class="cb" role="checkbox" aria-checked="${!!t.done}" data-act="th-toggle" title="${t.done ? "Mark as not done" : "Mark as done"}"></button>
-        <div><div class="kick">To-do · ${esc(short(T.date))}</div><h3 class="th-title ${t.done ? "done" : ""}" data-act="th-title" title="Click to edit">${esc(t.text)}</h3></div>
-        <button class="x" data-act="close" title="Close (Esc)">×</button></div>
-      <div class="log scroll" id="thLog">
-        ${t.context || facts ? `<div class="th-root">${t.context ? `<div class="th-ctx">${esc(t.context)}</div>` : ""}${facts ? `<div class="th-facts">${facts}</div>` : ""}</div>` : ""}
-        <div class="th-div">${notes.length ? `${notes.length} note${notes.length > 1 ? "s" : ""}` : "Notes"}</div>
-        ${body}
-        ${T.error ? `<div class="msg err">${esc(T.error)}</div>` : ""}
-      </div>
-      <form class="composer" data-form="note"><textarea id="noteInput" rows="2" placeholder="Add an update, a draft or a link…" aria-label="Add a note"></textarea><button class="btn">Add</button></form>
-      <div class="dr-foot"><span class="hint">Enter to add · Shift+Enter for a new line · only you see these</span></div>`;
-
-    const ta = $("#noteInput");
-    ta.value = drafts.get(threadKey()) || "";
-    autosize(ta);
-    const log = $("#thLog");
+  function renderThread() {
+    const t = T.todo;
+    if (!t) {
+      drawer.innerHTML = `<div class="dr-head"><div><div class="kick">To-do notes</div><h3>${T.loading ? "Opening…" : "To-do not found"}</h3></div><button class="x" data-act="close" title="Close (Esc)">×</button></div>
+        <div class="log scroll">${T.loading ? `<div class="th-empty">Opening the to-do…</div>` : `<div class="msg err">${esc(T.error || "This to-do isn't on that page any more.")}</div>`}</div>`;
+      return;
+    }
+    const key = threadKey();
+    if (drawer.dataset.thread !== key || !$("#noteInput")) {
+      drawer.dataset.thread = key;
+      drawer.innerHTML = `<div class="dr-head"></div><div class="log scroll" id="thLog"></div>
+        <form class="composer" data-form="note"><textarea id="noteInput" rows="2" placeholder="Add an update, a draft or a link…" aria-label="Add a note"></textarea><button class="btn">Add</button></form>
+        <div class="dr-foot"><span class="hint">Enter to add · Shift+Enter for a new line</span></div>`;
+      const fresh = $("#noteInput");
+      fresh.value = drafts.get(key) || "";
+      autosize(fresh);
+    }
+    const head = drawer.querySelector(".dr-head");
+    if (!head.querySelector(".th-title-edit")) head.innerHTML = threadHeadHTML(t);
+    const log = $("#thLog"), keepScroll = log.scrollTop;
+    const prevEd = log.querySelector(".note-edit"), edFocus = !!prevEd && document.activeElement === prevEd;
+    const caret = prevEd ? [prevEd.selectionStart, prevEd.selectionEnd] : null;
+    if (prevEd) T.editText = prevEd.value;
+    log.innerHTML = threadLogHTML(t);
     log.scrollTop = T.stick ? log.scrollHeight : keepScroll;
     T.stick = false;
-    const ed = drawer.querySelector(".note-edit");
+    const ed = log.querySelector(".note-edit");
     if (ed) {
       autosize(ed);
-      if (edFocus || T.focusEdit) { ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); }
-    } else if (inFocus || edFocus || T.focus) ta.focus();
+      if (edFocus || T.focusEdit) {
+        ed.focus();
+        const [a, b] = edFocus && caret ? caret : [ed.value.length, ed.value.length];
+        ed.setSelectionRange(a, b);
+      }
+    } else if (edFocus || T.focus) $("#noteInput").focus();
     T.focus = false; T.focusEdit = false;
   }
 
@@ -1293,15 +1323,14 @@ Question: ${q}`;
     el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
   }
 
-  // A click on a to-do row opens its notes. On the text itself, wait out a possible double-click (= edit).
-  let rowTimer = 0;
+  let rowTimer = 0, rowOpened = null;
   function rowClick(e) {
     const li = e.target.closest("li.todo");
     if (!li || e.target.closest("a, input, textarea") || String(window.getSelection() || "")) return;
     clearTimeout(rowTimer);
     if (e.detail > 1) return;
     const { date, id } = li.dataset;
-    if (e.target.closest(".t-text")) rowTimer = setTimeout(() => openThreadParam(date, id), 250);
+    if (e.target.closest(".t-text")) rowTimer = setTimeout(() => { rowOpened = { date, id, at: Date.now() }; openThreadParam(date, id); }, 250);
     else openThreadParam(date, id);
   }
 
@@ -1318,6 +1347,7 @@ Question: ${q}`;
     const finish = ok => {
       if (done) return; done = true;
       const v = input.value.trim();
+      input.classList.remove(cls);
       save(ok && v && v !== old ? v : null);
     };
     input.addEventListener("keydown", k => {
@@ -1416,7 +1446,9 @@ Question: ${q}`;
         mutate(date, { op: "move", todo_id: id, to_date: today }).then(ok => {
           if (!ok) return;
           toast("Moved to today's page");
-          if (threadIs(date, id)) setP("todo", `${today}:${id}`);
+          const from = `${date}:${id}`, to = `${today}:${id}`;
+          if (drafts.has(from)) { drafts.set(to, drafts.get(from)); drafts.delete(from); }
+          if (threadIs(date, id)) { following = id; setP("todo", to); }
         });
         break;
       }
@@ -1455,6 +1487,8 @@ Question: ${q}`;
     const el = e.target.closest(".t-text");
     if (!el) return;
     const li = el.closest(".todo"), id = li.dataset.id, date = li.dataset.date;
+    if (rowOpened && rowOpened.date === date && rowOpened.id === id && Date.now() - rowOpened.at < 800 && threadIs(date, id)) closeDrawer();
+    rowOpened = null;
     editInPlace(el, "t-edit", el.textContent, v => {
       if (v) { patchTodo(date, id, t => { t.text = v; }); render(); mutate(date, { op: "edit", todo_id: id, text: v }); }
       else render();
@@ -1511,8 +1545,7 @@ Question: ${q}`;
   });
 
   // ---------- param-driven redraw ----------
-  // The drawer params (chat, todo) don't change the page itself, so they skip the whole-page repaint.
-  let pendingScroll = null, drawnKey = "";
+  let pendingScroll = null, drawnKey = "", following = null;
   function draw() {
     if (batching) return;
     const p = P(), key = `${p.view}|${p.date}|${p.month}`;
@@ -1524,8 +1557,8 @@ Question: ${q}`;
   function afterLoad() {
     const p = P();
     if (pendingScroll && S.loadedDate === p.date) { const mid = pendingScroll; pendingScroll = null; requestAnimationFrame(() => scrollToMeeting(mid)); }
-    // A to-do's notes stay open on its own page and in the open-to-dos list; elsewhere they close.
-    const th = p.todo && (p.view === "open" || (p.view === "notebook" && p.todo.date === p.date)) ? p.todo : null;
+    const th = p.todo && (p.view === "open" || (p.view === "notebook" && (p.todo.date === p.date || p.todo.id === following))) ? p.todo : null;
+    following = null;
     const wantChat = !th && LOCAL && p.view === "notebook" && p.chat && S.day && S.day.date === p.date && S.day.meetings.some(m => m.id === p.chat);
     if (th) { if (!threadIs(th.date, th.id)) openThread(th.date, th.id); }
     else if (wantChat) { if (C.mode !== "chat" || C.mid !== p.chat || C.date !== p.date) openChat(p.date, p.chat); }
