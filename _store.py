@@ -161,6 +161,11 @@ def transcript_path(meeting_id):
     return os.path.join(TRANSCRIPTS, safe_id(meeting_id) + ".txt")
 
 
+def note_summary(t):
+    notes = t.get("notes") or []
+    return {"note_count": len(notes), "note_at": notes[-1].get("at") if notes else None}
+
+
 def all_dates():
     if not os.path.isdir(DAYS):
         return []
@@ -187,7 +192,7 @@ def days_index():
                        "priority": t.get("priority") or "medium", "due": t.get("due"),
                        "meeting_id": t.get("meeting_id") or "",
                        "meeting_title": titles.get(t.get("meeting_id")) or t.get("meeting_title") or "",
-                       "notion": t.get("notion")}
+                       "notion": t.get("notion"), **note_summary(t)}
                       for t in day["todos"]],
         })
     rows.sort(key=lambda r: r["date"], reverse=True)

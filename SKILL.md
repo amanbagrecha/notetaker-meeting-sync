@@ -1,7 +1,7 @@
 ---
 name: notetaker-meeting-sync
 description: Meeting notebook — one page per day with the to-dos pulled from that day's meetings (Wispr Flow via a Claude sync task). Read a day, tick or add to-dos.
-approve: [todos.py, chat.py, notion.py]
+approve: [todos.py, notes.py, chat.py, notion.py]
 ---
 # Meeting Notebook
 
@@ -16,10 +16,15 @@ To-dos the user picks by hand can become tickets in the Notion "Engineering Task
 them queued and returns a Claude task prompt; that task (Notion connector) writes `.fused/data/notion/<request>.json`
 and `notebook.py` stamps each to-do's `notion` field (`{"status": "queued" | "created" | "failed", "url"?, "error"?}`).
 
+Each to-do can carry a private notes thread (`notes`: `[{"id", "text", "at", "edited_at"?}]`, oldest first) — updates,
+drafts, links the user keeps on it. It lives inside the to-do record, so it moves with the to-do, goes away when the
+to-do is deleted, and syncs never touch it. The page index only carries `note_count` / `note_at`, never the text, and
+notes are not sent to Notion.
+
 ## notebook.py
 Returns the page index and one day page. Merges any finished sync and Notion results first (writes `.fused/data/days/`).
 - Args: `date` (str, "YYYY-MM-DD", default "" = index only)
-- Returns: `{"today": str, "index": [{"date", "summary", "synced_at", "n_meetings", "meetings": [...], "todos": [{"id", "text", "done", "priority", "due", "meeting_id", "meeting_title", "notion"}]}], "day": {"date", "summary", "meetings": [...], "todos": [...], "synced_at", "sources", "warnings"} | null, "merged": [str], "problems": [str], "inbox_pending": [str], "settings": {...}, "sync": {...}}`
+- Returns: `{"today": str, "index": [{"date", "summary", "synced_at", "n_meetings", "meetings": [...], "todos": [{"id", "text", "done", "priority", "due", "meeting_id", "meeting_title", "notion", "note_count", "note_at"}]}], "day": {"date", "summary", "meetings": [...], "todos": [...], "synced_at", "sources", "warnings"} | null, "merged": [str], "problems": [str], "inbox_pending": [str], "settings": {...}, "sync": {...}}`
 - Example: `{"action":"py","app":"notetaker-meeting-sync","file":"notebook.py","args":{"date":"2026-10-07"}}`
 
 ## todos.py
@@ -27,6 +32,12 @@ Changes one to-do on one day page. Writes `.fused/data/days/<date>.json` (and th
 - Args: `date` (str, required), `op` (str, required: "add" | "done" | "edit" | "delete" | "move"), `todo_id` (str, required except for add), `text` (str, add/edit), `meeting_id` (str, add, default ""), `done` (bool, for op=done, default false), `priority` (str "high"|"medium"|"low", default ""), `due` (str "YYYY-MM-DD", default ""), `to_date` (str, for move)
 - Returns: `{"day": {...}, "index": [...]}`
 - Example: `{"action":"py","app":"notetaker-meeting-sync","file":"todos.py","args":{"date":"2026-10-07","op":"add","text":"Send Vasu the pricing deck"}}`
+
+## notes.py
+Reads or changes the notes thread inside one to-do. `add`/`edit`/`delete` write `.fused/data/days/<date>.json`; `get` writes nothing.
+- Args: `date` (str, required), `todo_id` (str, required), `op` (str, default "get": "get" | "add" | "edit" | "delete"), `note_id` (str, for edit/delete), `text` (str, for add/edit; newlines kept, at most 20000 characters)
+- Returns: `{"date": str, "todo": {... "notes": [{"id", "text", "at", "edited_at"?}]}, "meeting": {"id", "title", "start", "end", "url", "source"} | null, "index": [...] | null}` (`index` only after a change)
+- Example: `{"action":"py","app":"notetaker-meeting-sync","file":"notes.py","args":{"date":"2026-10-07","todo_id":"s-1a2b3c4d5e6f","op":"add","text":"Vasu wants the deck by Friday: https://docs.example.com/deck"}}`
 
 ## sync.py
 Plans a meeting sync and returns the Claude task prompt; also stores the auto-sync settings. Writes `.fused/data/sync.json` (request log) and `.fused/data/settings.json`. It does not start the task itself — the page does that with `fused.tasks.create`.
