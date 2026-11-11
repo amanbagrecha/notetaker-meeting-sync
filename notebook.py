@@ -24,5 +24,6 @@ def main(date: str = ""):
         "problems": problems,
         "inbox_pending": pending,
         "settings": S.load_settings(),
+        "attach_dir": S.ATTACH,
         "sync": S.load_sync_log(),
     }

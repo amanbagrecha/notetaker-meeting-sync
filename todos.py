@@ -21,6 +21,7 @@ def main(date: str, op: str, todo_id: str = "", text: str = "", meeting_id: str 
     date = S.check_date(date)
     if op not in OPS:
         raise ValueError("op must be one of %s" % ", ".join(OPS))
+    gone = set()
     with S.locked():
         day = S.load_day(date)
         if op == "add":
@@ -49,6 +50,7 @@ def main(date: str, op: str, todo_id: str = "", text: str = "", meeting_id: str 
         elif op == "delete":
             t = _find(day, todo_id)
             day["todos"].remove(t)
+            gone = S.note_images(t.get("notes"))
             if t.get("key"):
                 # Remember deletions so the next sync of this day doesn't bring it back.
                 day.setdefault("dismissed", []).append(t["key"])
@@ -66,4 +68,5 @@ def main(date: str, op: str, todo_id: str = "", text: str = "", meeting_id: str 
             dest["todos"].append(moved)
             S.save_day(dest)
         S.save_day(day)
+        S.drop_images(gone)
     return {"day": day, "index": S.days_index()}

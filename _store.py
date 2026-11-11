@@ -6,6 +6,7 @@ Layout under .fused/data/:
   inbox/processed/            last merged inbox file per date (audit trail)
   transcripts/<meeting>.txt   transcript text pulled out of inbox files
   chats/<meeting>.json        conversation with one meeting
+  attachments/a-<hex>.<ext>   images attached to to-do notes (uploaded by the page, referenced by id)
   notion/<request>.json       written by the Notion ticket task; stamped onto to-dos on next read
   notion/processed/           merged Notion results (audit trail)
   settings.json, sync.json    auto-sync switch + Notion target, sync request log
@@ -27,6 +28,7 @@ INBOX = os.path.join(DATA, "inbox")
 PROCESSED = os.path.join(INBOX, "processed")
 TRANSCRIPTS = os.path.join(DATA, "transcripts")
 CHATS = os.path.join(DATA, "chats")
+ATTACH = os.path.join(DATA, "attachments")
 SETTINGS = os.path.join(DATA, "settings.json")
 SYNC_LOG = os.path.join(DATA, "sync.json")
 NOTION_OUT = os.path.join(DATA, "notion")
@@ -48,7 +50,7 @@ DEFAULT_SETTINGS = {"auto_sync": True, "interval_min": 90, "notion": NOTION_DEFA
 
 
 def ensure_dirs():
-    for d in (DAYS, INBOX, PROCESSED, TRANSCRIPTS, CHATS, NOTION_DONE):
+    for d in (DAYS, INBOX, PROCESSED, TRANSCRIPTS, CHATS, NOTION_DONE, ATTACH):
         os.makedirs(d, exist_ok=True)
 
 
@@ -164,6 +166,65 @@ def transcript_path(meeting_id):
 def note_summary(t):
     notes = t.get("notes") or []
     return {"note_count": len(notes), "note_at": notes[-1].get("at") if notes else None}
+
+
+IMAGE_RE = re.compile(r"^a-[0-9a-f]{16}\.(png|jpg|gif|webp)$")
+IMAGE_TYPES = {"png": "image/png", "jpg": "image/jpeg", "gif": "image/gif", "webp": "image/webp"}
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+UNSENT_IMAGE_TTL_S = 24 * 3600
+
+
+def image_path(image_id):
+    if not IMAGE_RE.match(image_id or ""):
+        raise ValueError("bad image id %r" % image_id)
+    return os.path.join(ATTACH, image_id)
+
+
+def sniff_image(path):
+    with open(path, "rb") as f:
+        head = f.read(16)
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+def note_images(notes):
+    return {i.get("id") for n in notes or [] for i in n.get("images") or [] if i.get("id")}
+
+
+def referenced_images():
+    refs = set()
+    for d in all_dates():
+        for t in load_day(d)["todos"]:
+            refs |= note_images(t.get("notes"))
+    return refs
+
+
+def drop_images(ids, keep=()):
+    for i in set(ids) - set(keep):
+        try:
+            os.unlink(image_path(i))
+        except (ValueError, FileNotFoundError):
+            pass
+
+
+def sweep_images():
+    """Remove uploads no note points at once they are old enough to be abandoned drafts."""
+    if not os.path.isdir(ATTACH):
+        return
+    refs, cutoff = referenced_images(), time.time() - UNSENT_IMAGE_TTL_S
+    for name in os.listdir(ATTACH):
+        path = os.path.join(ATTACH, name)
+        if name in refs or not os.path.isfile(path):
+            continue
+        if os.path.getmtime(path) < cutoff:
+            os.unlink(path)
 
 
 def all_dates():

@@ -16,8 +16,11 @@ To-dos the user picks by hand can become tickets in the Notion "Engineering Task
 them queued and returns a Claude task prompt; that task (Notion connector) writes `.fused/data/notion/<request>.json`
 and `notebook.py` stamps each to-do's `notion` field (`{"status": "queued" | "created" | "failed", "url"?, "error"?}`).
 
-Each to-do can carry a private notes thread (`notes`: `[{"id", "text", "at", "edited_at"?}]`, oldest first) — updates,
-drafts, links the user keeps on it. It lives inside the to-do record, so it moves with the to-do, goes away when the
+Each to-do can carry a private notes thread (`notes`: `[{"id", "text", "at", "edited_at"?, "images"?}]`, oldest first) —
+updates, drafts, links and images the user keeps on it. Images live in `.fused/data/attachments/a-<16 hex>.<png|jpg|gif|webp>`
+(the page uploads the bytes there, then names them in a `notes.py` call that checks each file's real type); a note lists
+them as `[{"id", "name", "type", "size", "w"?, "h"?}]`. Deleting a note, removing an image while editing, or deleting the
+to-do removes the files; uploads no note ever named are swept after a day. It lives inside the to-do record, so it moves with the to-do, goes away when the
 to-do is deleted, and syncs never touch it. The page index only carries `note_count` / `note_at`, never the text.
 Notes are not sent to Notion; the page's "Talk to meeting" chat does include the latest notes of that meeting's
 to-dos as context for its AI call.
@@ -25,7 +28,7 @@ to-dos as context for its AI call.
 ## notebook.py
 Returns the page index and one day page. Merges any finished sync and Notion results first (writes `.fused/data/days/`).
 - Args: `date` (str, "YYYY-MM-DD", default "" = index only)
-- Returns: `{"today": str, "index": [{"date", "summary", "synced_at", "n_meetings", "meetings": [...], "todos": [{"id", "text", "done", "priority", "due", "meeting_id", "meeting_title", "notion", "note_count", "note_at"}]}], "day": {"date", "summary", "meetings": [...], "todos": [...], "synced_at", "sources", "warnings"} | null, "merged": [str], "problems": [str], "inbox_pending": [str], "settings": {...}, "sync": {...}}`
+- Returns: `{"today": str, "attach_dir": str (absolute path of the image attachments folder), "index": [{"date", "summary", "synced_at", "n_meetings", "meetings": [...], "todos": [{"id", "text", "done", "priority", "due", "meeting_id", "meeting_title", "notion", "note_count", "note_at"}]}], "day": {"date", "summary", "meetings": [...], "todos": [...], "synced_at", "sources", "warnings"} | null, "merged": [str], "problems": [str], "inbox_pending": [str], "settings": {...}, "sync": {...}}`
 - Example: `{"action":"py","app":"notetaker-meeting-sync","file":"notebook.py","args":{"date":"2026-10-07"}}`
 
 ## todos.py
@@ -35,9 +38,9 @@ Changes one to-do on one day page. Writes `.fused/data/days/<date>.json` (and th
 - Example: `{"action":"py","app":"notetaker-meeting-sync","file":"todos.py","args":{"date":"2026-10-07","op":"add","text":"Send Vasu the pricing deck"}}`
 
 ## notes.py
-Reads or changes the notes thread inside one to-do. `add`/`edit`/`delete` write `.fused/data/days/<date>.json`; `get` writes nothing.
-- Args: `date` (str, required), `todo_id` (str, required), `op` (str, default "get": "get" | "add" | "edit" | "delete"), `note_id` (str, for edit/delete), `text` (str, for add/edit; newlines kept, at most 20000 characters)
-- Returns: `{"date": str, "todo": {... "notes": [{"id", "text", "at", "edited_at"?}]}, "meeting": {"id", "title", "start", "end", "url", "source"} | null, "index": [...] | null}` (`index` only after a change)
+Reads or changes the notes thread inside one to-do. `add`/`edit`/`delete` write `.fused/data/days/<date>.json` and remove image files they drop from `.fused/data/attachments/`; `discard` deletes unsent uploads; `get` writes nothing.
+- Args: `date` (str, required), `todo_id` (str, required; ignored by discard), `op` (str, default "get": "get" | "add" | "edit" | "delete" | "discard"), `note_id` (str, for edit/delete), `text` (str, for add/edit; newlines kept, at most 20000 characters; may be empty when the note has images), `images` (str, JSON list of already-uploaded attachment ids or `{"id", "name"?, "w"?, "h"?}`, at most 12; add: the note's images; edit: the full new list, "" = unchanged; discard: the uploads to delete)
+- Returns: `{"date": str, "todo": {... "notes": [{"id", "text", "at", "edited_at"?, "images"?: [{"id", "name", "type", "size", "w"?, "h"?}]}]}, "meeting": {"id", "title", "start", "end", "url", "source"} | null, "index": [...] | null}` (`index` only after a change); discard → `{"ok": true}`
 - Example: `{"action":"py","app":"notetaker-meeting-sync","file":"notes.py","args":{"date":"2026-10-07","todo_id":"s-1a2b3c4d5e6f","op":"add","text":"Vasu wants the deck by Friday: https://docs.example.com/deck"}}`
 
 ## sync.py
