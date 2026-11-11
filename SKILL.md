@@ -12,9 +12,14 @@ that into the day page on its next call, keeping ticks, edits and hand-added to-
 each meeting once — on the first sync after it has ended with notes (stamped `todos_at` on the meeting); later
 syncs refresh the meeting but ignore its to-dos, so deleted or reworded ones never come back.
 
-To-dos the user picks by hand can become tickets in the Notion "Engineering Tasks" database: `notion.py` marks
-them queued and returns a Claude task prompt; that task (Notion connector) writes `.fused/data/notion/<request>.json`
-and `notebook.py` stamps each to-do's `notion` field (`{"status": "queued" | "created" | "failed", "url"?, "error"?}`).
+To-dos the user picks by hand can become tickets in the user's Notion ticket database: `notion.py` marks them queued
+and returns a Claude task prompt; that task (Notion connector) reads the database schema, writes a proper ticket
+title from the to-do, its notes and images, sets the owner to whoever does the work (matched against the workspace's
+Notion users, the signed-in user by default), the status's default option and the "not prioritized yet" priority,
+puts the notes and their images in the page, then writes `.fused/data/notion/<request>.json`. `notebook.py` stamps
+each to-do's `notion` field (`{"status": "queued" | "created" | "failed", "url"?, "title"?, "owner"?, "error"?}`).
+The database is `settings.json` → `notion` (`database_name`, `database_url`, `data_source`); when empty, the task
+finds the team's ticket database (asking the user if several fit) and the app remembers it.
 
 Each to-do can carry a private notes thread (`notes`: `[{"id", "text", "at", "edited_at"?, "images"?}]`, oldest first) —
 updates, drafts, links and images the user keeps on it. Images live in `.fused/data/attachments/a-<16 hex>.<png|jpg|gif|webp>`
@@ -22,8 +27,8 @@ updates, drafts, links and images the user keeps on it. Images live in `.fused/d
 them as `[{"id", "name", "type", "size", "w"?, "h"?}]`. Deleting a note, removing an image while editing, or deleting the
 to-do removes the files; uploads no note ever named are swept after a day. It lives inside the to-do record, so it moves with the to-do, goes away when the
 to-do is deleted, and syncs never touch it. The page index only carries `note_count` / `note_at`, never the text.
-Notes are not sent to Notion; the page's "Talk to meeting" chat does include the latest notes of that meeting's
-to-dos as context for its AI call.
+A to-do's notes, with their images, go into its Notion ticket; the page's "Talk to meeting" chat includes the latest
+notes of that meeting's to-dos as context for its AI call.
 
 ## notebook.py
 Returns the page index and one day page. Merges any finished sync and Notion results first (writes `.fused/data/days/`).

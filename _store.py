@@ -36,15 +36,7 @@ NOTION_DONE = os.path.join(NOTION_OUT, "processed")
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 PRIORITIES = ("high", "medium", "low")
-# Where picked to-dos become tickets: the "Engineering Tasks" database, owned by the user (the "Aman" board).
-NOTION_DEFAULTS = {
-    "database_name": "Engineering Tasks",
-    "database_url": "https://app.notion.com/p/9d18fa8396e24ea98f7bb84f44a2b152",
-    "data_source": "collection://f23dba4b-107c-4b12-ae4e-4274fd87a243",
-    "owner_id": "32fd872b-594c-819a-99c6-0002a6d6c599",
-    "status": "Not started",
-    "priority": {"high": "P1", "medium": "P2", "low": "P3"},
-}
+NOTION_DEFAULTS = {"database_name": "", "database_url": "", "data_source": ""}
 NOTION_STALE_S = 30 * 60
 DEFAULT_SETTINGS = {"auto_sync": True, "interval_min": 90, "notion": NOTION_DEFAULTS}
 
@@ -464,10 +456,15 @@ def ingest_notion():
             url = str(r.get("url") or "").strip()
             if url.startswith(("https://", "http://")):
                 t["notion"] = {"status": "created", "url": url, "at": now_iso()}
+                for k in ("title", "owner"):
+                    v = " ".join(str(r.get(k) or "").split())[:200]
+                    if v:
+                        t["notion"][k] = v
             else:
                 t["notion"] = {"status": "failed", "at": now_iso(),
                                "error": str(r.get("error") or "No ticket link came back")}
             changed.add(day["date"])
+        _remember_database(payload.get("database"))
         os.replace(path, os.path.join(NOTION_DONE, name))
 
     cutoff = time.time() - NOTION_STALE_S
@@ -499,8 +496,24 @@ def load_settings():
     saved = read_json(SETTINGS, {}) or {}
     s = dict(DEFAULT_SETTINGS)
     s.update(saved)
-    s["notion"] = dict(NOTION_DEFAULTS, **(saved.get("notion") or {}))
+    n = saved.get("notion") if isinstance(saved.get("notion"), dict) else {}
+    s["notion"] = {k: str(n.get(k) or v) for k, v in NOTION_DEFAULTS.items()}
     return s
+
+
+def _remember_database(db):
+    """Keep the ticket database the Notion task picked, when none was set yet."""
+    if not isinstance(db, dict):
+        return
+    url, ds = str(db.get("url") or "").strip(), str(db.get("data_source") or "").strip()
+    if not url.startswith("https://") or not ds.startswith("collection://"):
+        return
+    s = load_settings()
+    if s["notion"]["data_source"]:
+        return
+    s["notion"] = {"database_name": " ".join(str(db.get("name") or "").split())[:120] or "Notion",
+                   "database_url": url, "data_source": ds}
+    write_json(SETTINGS, s)
 
 
 def load_sync_log():

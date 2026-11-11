@@ -624,16 +624,16 @@
   // Bottom tray: what's picked for Notion, or the ticket task while it runs.
   function trayHTML() {
     if (!LOCAL) return "";
-    const n = S.nsel.size, db = (S.settings.notion && S.settings.notion.database_name) || "Notion";
+    const n = S.nsel.size, db = (S.settings.notion && S.settings.notion.database_name) || "";
     if (n) return `<div class="tray" role="region" aria-label="Notion tickets">
-      <span><b>${n}</b> to-do${n > 1 ? "s" : ""} picked <span class="sub">→ Notion · ${esc(db)}</span></span>
+      <span><b>${n}</b> to-do${n > 1 ? "s" : ""} picked <span class="sub">→ Notion${db ? ` · ${esc(db)}` : ""}</span></span>
       <button class="btn" data-act="notion-send" ${S.sending ? "disabled" : ""}>${S.sending ? "Starting…" : `Create ticket${n > 1 ? "s" : ""}`}</button>
       <button class="tb-btn" data-act="notion-clear" title="Unpick all (Esc)">Clear</button></div>`;
     const act = activeNotion();
     if (!act.length) return "";
     const t = act[0], attn = t.status === "needs_attention" || t.status === "blocked";
     return `<div class="tray" role="status"><span class="dot ${attn ? "warn" : "live"}"></span>
-      <span>${attn ? "The Notion task needs you" : `Claude is creating tickets in ${esc(db)}…`}</span>
+      <span>${attn ? "The Notion task needs you" : `Claude is creating tickets in ${esc(db || "Notion")}…`}</span>
       ${t.key ? `<button class="linkbtn" data-act="task" data-key="${esc(t.key)}" data-title="Notion tickets">Open</button>` : ""}</div>`;
   }
 
@@ -709,7 +709,7 @@
     const n = t.notion || {};
     const late = t.due && !t.done && t.due < todayISO();
     return [
-      hasTicket(t) ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="Open the Notion ticket">Notion ↗</a>` : "",
+      hasTicket(t) ? `<a class="chip notion" href="${esc(n.url)}" target="_blank" rel="noopener" title="${esc(["Open the Notion ticket", n.title, n.owner && `owner: ${n.owner}`].filter(Boolean).join(" · "))}">Notion ↗</a>` : "",
       n.status === "queued" ? `<span class="chip notion">→ Notion…</span>` : "",
       n.status === "failed" ? `<span class="chip red" title="${esc(n.error || "")}">Notion failed</span>` : "",
       mt ? `<button class="chip" data-act="meeting" data-mid="${esc(t.meeting_id)}" data-date="${esc(t.moved_from || date)}" title="Show meeting">${esc(mt)}</button>` : "",
