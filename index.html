@@ -339,6 +339,34 @@
   .note-edit { display: block; width: 100%; resize: none; padding: 6px 8px; border: 1px solid var(--red); border-radius: 6px; background: var(--paper); font-size: 13.5px; line-height: 1.5; outline: none; max-height: 260px; }
   .note-edit-row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
   #noteInput { max-height: 220px; }
+  .note-imgs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .note-img { display: block; position: relative; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--chip); cursor: zoom-in; }
+  .note-img img { display: block; max-width: 100%; max-height: 240px; width: auto; height: auto; }
+  .note-imgs.many .note-img { width: 104px; height: 104px; }
+  .note-imgs.many .note-img img { width: 100%; height: 100%; max-height: none; object-fit: cover; }
+  .note-img .x-img { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0, 0, 0, .65); color: #fff; font-size: 13px; line-height: 20px; text-align: center; cursor: pointer; }
+  .note-edit-imgs .note-img { cursor: default; }
+  .att-tray { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 0; border-top: 1px solid var(--line); }
+  .att-tray[hidden] { display: none; }
+  .att-tray + .composer { border-top: 0; }
+  .att { position: relative; width: 56px; height: 56px; flex: none; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--chip); }
+  .att img { width: 100%; height: 100%; object-fit: cover; }
+  .att.uploading img { opacity: .45; }
+  .att.uploading::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: 6px; height: 3px; border-radius: 2px; background: var(--red); animation: pulse 1s ease-in-out infinite; }
+  .att.failed { border-color: var(--red); }
+  .att .x-img { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0, 0, 0, .65); color: #fff; font-size: 12px; line-height: 18px; text-align: center; }
+  .att-btn { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--ink-soft); }
+  .att-btn:hover { background: var(--hover); color: var(--text); }
+  .att-btn svg { width: 18px; height: 18px; }
+  .drawer.drop-on::after { content: "Drop images to attach"; position: absolute; inset: 8px; z-index: 5; display: flex; align-items: center; justify-content: center; border: 2px dashed var(--red); border-radius: 10px; background: var(--red-soft); color: var(--red); font-weight: 600; pointer-events: none; }
+  .todo.drop-on { background: var(--red-soft); border-radius: 4px; }
+  .lightbox { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 48px 24px 24px; background: rgba(10, 10, 12, .86); cursor: zoom-out; }
+  .lightbox[hidden] { display: none; }
+  .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); cursor: default; }
+  .lb-bar { position: absolute; top: 10px; left: 16px; right: 12px; display: flex; align-items: center; gap: 12px; color: #eee; font-size: 12.5px; }
+  .lb-bar .lb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-bar a, .lb-bar button { color: #eee; text-decoration: none; padding: 4px 8px; border-radius: 6px; }
+  .lb-bar a:hover, .lb-bar button:hover { background: rgba(255, 255, 255, .12); }
   .ctx-pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 9px; background: var(--chip); margin-right: 4px; }
 
   .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 30; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 8px; font-size: 12.5px; box-shadow: var(--shadow); max-width: 80vw; pointer-events: none; }
@@ -390,6 +418,7 @@
   <div id="root"></div>
   <aside id="drawer" class="drawer" hidden></aside>
   <div id="toast" class="toast" hidden></div>
+  <div id="lightbox" class="lightbox" hidden></div>
 
 <script>
 (() => {
@@ -434,6 +463,7 @@
   const ICON = `<svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#c8312b"/><rect x="21" y="11" width="31" height="42" rx="4" fill="#fbf8f0"/><g stroke="#2a2824" stroke-width="4" stroke-linecap="round" fill="none"><path d="M14 18h11M14 28h11M14 38h11M14 48h11"/><path d="M29 23h16M29 32h16M29 41h11"/></g></svg>`;
   const BUBBLE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><circle cx="8.5" cy="10.5" r=".6" fill="currentColor"/><circle cx="12" cy="10.5" r=".6" fill="currentColor"/><circle cx="15.5" cy="10.5" r=".6" fill="currentColor"/></svg>`;
   const NOTE_ICO = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M3 2.5h10a1.5 1.5 0 0 1 1.5 1.5v6.5A1.5 1.5 0 0 1 13 12H8l-3.5 2.5V12H3a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 3 2.5z"/><path d="M5 6h6M5 8.5h4" stroke-linecap="round"/></svg>`;
+  const IMG_ICO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><circle cx="7.5" cy="8" r="1.6"/><path d="M3 15l4.5-4.5 3.5 3.5 2.5-2.5 4 4" stroke-linecap="round"/></svg>`;
   const PAGE_ICO = `<svg class="pg-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4" y="2" width="9.5" height="12" rx="1.5"/><path d="M2.5 4.5h3M2.5 8h3M2.5 11.5h3"/></svg>`;
 
   const root = $("#root");
@@ -459,7 +489,7 @@
   };
   const C = { mode: null, date: null, mid: null, meeting: null, todos: [], transcript: "", messages: [], busy: false, stream: "", abort: null, loading: false, taskUrl: "", taskTitle: "" };
   const T = { date: null, id: null, todo: null, meeting: null, loading: false, error: "", editing: null, editText: "", stick: false, focus: false, focusEdit: false };
-  const drafts = new Map();
+  const drafts = new Map(), atts = new Map();
 
   function P() {
     const views = ["notebook", "calendar", "open"];
@@ -489,7 +519,7 @@
       const r = await fused.runPython("./notebook.py", { date });
       const sig = JSON.stringify([r.index, r.day, r.settings, r.problems]);
       const same = quiet && !S.error && date === S.loadedDate && sig === S.sig;
-      Object.assign(S, { index: r.index, day: r.day, settings: r.settings, sync: r.sync, pending: r.inbox_pending, problems: r.problems, loadedDate: date, error: null, sig });
+      Object.assign(S, { index: r.index, day: r.day, settings: r.settings, sync: r.sync, pending: r.inbox_pending, problems: r.problems, loadedDate: date, error: null, sig, attachDir: r.attach_dir || S.attachDir });
       refreshThread();
       if (r.merged && r.merged.length) toast(`Synced ${r.merged.map(shortNoWd).join(", ")}`);
       if (same) return;
@@ -907,7 +937,8 @@
     const notes = (t.notes || []).slice(-6);
     if (!notes.length) return "";
     const clip = s => (s.length > 600 ? `${s.slice(0, 600)}…` : s).replace(/\n/g, "\n      ");
-    return `\n  Notes the user keeps on this to-do (oldest first):\n${notes.map(n => `    - ${String(n.at || "").slice(0, 10)}: ${clip(n.text)}`).join("\n")}`;
+    const pics = n => (n.images || []).length ? ` [${n.images.length} image${n.images.length > 1 ? "s" : ""} attached]` : "";
+    return `\n  Notes the user keeps on this to-do (oldest first):\n${notes.map(n => `    - ${String(n.at || "").slice(0, 10)}: ${clip(n.text || "")}${pics(n)}`).join("\n")}`;
   }
 
   const SYSTEM = "You are the user's meeting-notebook assistant. You answer questions about ONE meeting using only the meeting record you are given (summary, discussion, decisions, the user's to-dos with any notes they keep on them, and the transcript if present). Address the user as \"you\". If the record does not contain the answer, say so in one sentence and suggest the \"Ask with Wispr Flow\" button for a live lookup. Be concise; use short bullet lists for lists. Plain text with light markdown (bold, bullets) only.";
@@ -1070,19 +1101,21 @@ Question: ${q}`;
     renderDrawer();
   }
 
-  let noteQueue = Promise.resolve(), queued = 0;
+  let noteQueue = Promise.resolve(), queued = 0, stickUntil = 0;
   function noteCall(date, id, args) {
     queued++;
     const run = async () => {
-      let r = null, err = null;
-      try { r = await fused.runPython("./notes.py", { date, todo_id: id, ...args }, { key: null }); }
+      let r = null, err = null, a = args;
+      if (typeof args === "function") { try { a = await args(); } catch (e) { a = null; } }
+      if (!a) { queued--; return false; }
+      try { r = await fused.runPython("./notes.py", { date, todo_id: id, ...a }, { key: null }); }
       catch (e) { err = e; }
       queued--;
-      if (err && args.op !== "get") {
+      if (err && a.op !== "get") {
         toast(err.message || "Couldn't save the note");
         if (!queued) { try { r = await fused.runPython("./notes.py", { date, todo_id: id, op: "get" }, { key: null }); } catch (e) { r = null; } }
       }
-      if (r) adoptThread(r, args.op !== "get");
+      if (r) adoptThread(r, a.op !== "get");
       return !err;
     };
     const p = noteQueue.then(run);
@@ -1105,20 +1138,34 @@ Question: ${q}`;
 
   function addNote(text) {
     text = (text || "").trim();
-    if (!text || C.mode !== "todo" || !T.todo) return;
+    if (C.mode !== "todo" || !T.todo) return;
     const { date, id } = T, key = threadKey(), tmp = `tmp-${Date.now()}`;
+    const pend = (atts.get(key) || []).filter(a => a.status !== "failed");
+    if (!text && !pend.length) return;
+    atts.delete(key);
+    renderAtts();
     if (!Array.isArray(T.todo.notes)) T.todo.notes = [];
-    T.todo.notes.push({ id: tmp, text, at: new Date().toISOString(), pending: true });
+    T.todo.notes.push({ id: tmp, text, at: new Date().toISOString(), pending: true,
+      images: pend.map(a => ({ id: a.id, name: a.name, preview: a.preview })) });
     drafts.delete(key);
     T.stick = true;
     renderDrawer();
-    noteCall(date, id, { op: "add", text }).then(ok => {
-      if (ok) return;
-      if (!drafts.get(key)) drafts.set(key, text);
+    const args = async () => {
+      await Promise.all(pend.map(a => a.done));
+      const up = pend.filter(a => a.status === "ready");
+      if (!text && !up.length) return null;
+      return { op: "add", text, images: up.length ? JSON.stringify(up.map(a => ({ id: a.id, name: a.name, w: a.w, h: a.h }))) : "" };
+    };
+    noteCall(date, id, args).then(ok => {
+      if (ok) { revokeWhenUnused(pend.map(a => a.preview)); return; }
+      const back = pend.filter(a => a.status === "ready");
+      if (back.length) atts.set(key, [...back, ...(atts.get(key) || [])]);
+      if (text && !drafts.get(key)) drafts.set(key, text);
       if (!threadIs(date, id) || !T.todo) return;
       T.todo.notes = (T.todo.notes || []).filter(x => x.id !== tmp);
       const ta = $("#noteInput");
-      if (ta && !ta.value) { ta.value = text; autosize(ta); }
+      if (ta && !ta.value && text) { ta.value = text; autosize(ta); }
+      renderAtts();
       renderDrawer();
     });
   }
@@ -1130,11 +1177,117 @@ Question: ${q}`;
     const text = (ed ? ed.value : T.editText).trim();
     const note = (T.todo.notes || []).find(x => x.id === nid);
     T.editing = null;
-    if (note && text && text !== note.text) {
+    const before = note ? (note.images || []).map(i => i.id) : [];
+    const kept = before.filter(i => (T.editImgs || before).includes(i));
+    const imgsChanged = kept.length !== before.length;
+    if (note && !text && !kept.length) toast("A note needs text or an image — use Delete to remove it");
+    else if (note && (text !== note.text || imgsChanged)) {
       note.text = text; note.edited_at = new Date().toISOString();
-      noteCall(T.date, T.id, { op: "edit", note_id: nid, text });
+      if (imgsChanged) note.images = (note.images || []).filter(i => kept.includes(i.id));
+      noteCall(T.date, T.id, { op: "edit", note_id: nid, text, ...(imgsChanged ? { images: JSON.stringify(kept) } : {}) });
     }
     renderDrawer();
+  }
+
+  const IMG_TYPES = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" };
+  const IMG_ID = /^a-[0-9a-f]{16}\.(png|jpg|gif|webp)$/;
+  const MAX_IMG_BYTES = 20 * 1024 * 1024, MAX_IMGS = 12;
+  const canAttach = () => LOCAL && typeof fused.uploadFile === "function" && !!S.attachDir;
+  const imgSrc = im => im.preview || (IMG_ID.test(im.id || "") && S.attachDir ? fused.rawUrl(`${S.attachDir}/${im.id}`) : "");
+
+  function randomHex(n) {
+    const b = new Uint8Array(n / 2);
+    crypto.getRandomValues(b);
+    return Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+  }
+
+  function filesFrom(dt) {
+    if (!dt) return [];
+    const files = Array.from(dt.files || []);
+    if (files.length) return files;
+    return Array.from(dt.items || []).filter(i => i.kind === "file").map(i => i.getAsFile()).filter(Boolean);
+  }
+
+  function attachFiles(files) {
+    if (!canAttach() || C.mode !== "todo") return;
+    const key = threadKey(), list = atts.get(key) || [];
+    for (const f of files) {
+      const ext = IMG_TYPES[f.type];
+      if (!ext) { toast(`${f.name || "That file"} isn't a PNG, JPEG, GIF or WebP image`); continue; }
+      if (f.size > MAX_IMG_BYTES) { toast(`${f.name || "That image"} is over 20 MB`); continue; }
+      if (list.length >= MAX_IMGS) { toast(`A note can hold ${MAX_IMGS} images`); break; }
+      const a = { id: `a-${randomHex(16)}.${ext}`, name: f.name && !/^image\.\w+$/i.test(f.name) ? f.name : `Pasted image.${ext}`,
+        preview: URL.createObjectURL(f), status: "uploading", removed: false, w: 0, h: 0 };
+      a.done = uploadAtt(a, f, key);
+      list.push(a);
+    }
+    atts.set(key, list);
+    renderAtts();
+  }
+
+  async function uploadAtt(a, file, key) {
+    const sent = fused.uploadFile(`${S.attachDir}/${a.id}`, file);
+    try { const img = new Image(); img.src = a.preview; await img.decode(); a.w = img.naturalWidth; a.h = img.naturalHeight; } catch (e) { }
+    try { await sent; a.status = "ready"; }
+    catch (e) { a.status = "failed"; toast(`Couldn't upload ${a.name}: ${e.message || e}`); }
+    if (a.removed && a.status === "ready") discardImages([a.id]);
+    if (C.mode === "todo" && threadKey() === key) renderAtts();
+  }
+
+  function revokeWhenUnused(urls) {
+    setTimeout(() => {
+      const shown = new Set(((T.todo && T.todo.notes) || []).flatMap(n => (n.images || []).map(i => i.preview)));
+      const busy = urls.filter(u => shown.has(u));
+      urls.filter(u => !shown.has(u)).forEach(u => URL.revokeObjectURL(u));
+      if (busy.length) revokeWhenUnused(busy);
+    }, 10000);
+  }
+
+  function discardImages(ids) {
+    if (ids.length) fused.runPython("./notes.py", { date: todayISO(), todo_id: "-", op: "discard", images: JSON.stringify(ids) }, { key: null }).catch(() => {});
+  }
+
+  function removeAtt(key, attId) {
+    const list = atts.get(key) || [], a = list.find(x => x.id === attId);
+    if (!a) return;
+    atts.set(key, list.filter(x => x !== a));
+    a.removed = true;
+    URL.revokeObjectURL(a.preview);
+    if (a.status === "ready") discardImages([a.id]);
+    renderAtts();
+  }
+
+  function renderAtts() {
+    const tray = $("#attTray");
+    if (!tray || C.mode !== "todo") return;
+    const list = atts.get(threadKey()) || [];
+    tray.hidden = !list.length;
+    tray.innerHTML = list.map(a => `<div class="att ${a.status}" data-att="${esc(a.id)}" title="${esc(a.name)}${a.status === "uploading" ? " — uploading…" : a.status === "failed" ? " — upload failed, not attached" : ""}">
+      <img src="${esc(a.preview)}" alt=""><button type="button" class="x-img" data-act="att-del" title="Remove" aria-label="Remove ${esc(a.name)}">×</button></div>`).join("");
+  }
+
+  function openLightbox(src, name) {
+    const lb = $("#lightbox");
+    lb.innerHTML = `<div class="lb-bar"><span class="lb-name">${esc(name)}</span><a href="${esc(src)}" download="${esc(name)}">Download</a>
+      <a href="${esc(src)}" target="_blank" rel="noopener">Open ↗</a><button type="button" title="Close (Esc)">×</button></div><img src="${esc(src)}" alt="${esc(name)}">`;
+    lb.hidden = false;
+  }
+
+  function closeLightbox() {
+    const lb = $("#lightbox");
+    lb.hidden = true; lb.innerHTML = "";
+  }
+
+  function galleryHTML(imgs, editing) {
+    const shown = imgs.filter(im => imgSrc(im));
+    if (!shown.length) return "";
+    const one = shown.length === 1 ? "one" : "many";
+    if (editing) {
+      return `<div class="note-imgs note-edit-imgs ${one}">${shown.map(im => `<div class="note-img"><img src="${esc(imgSrc(im))}" alt="${esc(im.name || "Image")}">
+        <button type="button" class="x-img" data-act="edit-img-del" data-img="${esc(im.id)}" title="Remove this image" aria-label="Remove ${esc(im.name || "image")}">×</button></div>`).join("")}</div>`;
+    }
+    return `<div class="note-imgs ${one}">${shown.map(im => `<button type="button" class="note-img" data-act="img-open" data-src="${esc(imgSrc(im))}" data-name="${esc(im.name || "Image")}" title="${esc(im.name || "Image")}">
+      <img src="${esc(imgSrc(im))}" alt="${esc(im.name || "Image")}" loading="lazy"${im.w && im.h ? ` width="${+im.w}" height="${+im.h}"` : ""}></button>`).join("")}</div>`;
   }
 
   function deleteNote(nid) {
@@ -1174,17 +1327,19 @@ Question: ${q}`;
     const facts = todoChips(t, T.date, (T.meeting && T.meeting.title) || t.meeting_title || "");
     const items = notes.map(x => {
       if (T.editing === x.id) {
-        return `<div class="note" data-nid="${esc(x.id)}"><textarea class="note-edit" rows="2" aria-label="Edit note">${esc(T.editText)}</textarea>
+        const keep = (x.images || []).filter(im => (T.editImgs || []).includes(im.id));
+        return `<div class="note" data-nid="${esc(x.id)}"><textarea class="note-edit" rows="2" aria-label="Edit note" placeholder="Caption (optional)">${esc(T.editText)}</textarea>
+          ${galleryHTML(keep, true)}
           <div class="note-edit-row"><button type="button" class="tb-btn" data-act="note-cancel">Cancel</button><button type="button" class="btn" data-act="note-save">Save</button></div></div>`;
       }
       return `<div class="note ${x.pending ? "pending" : ""}" data-nid="${esc(x.id)}">
         <div class="note-h"><span title="${esc(fullTime(x.at))}">${esc(rel(x.at))}</span>${x.edited_at ? `<span title="Edited ${esc(fullTime(x.edited_at))}">· edited</span>` : ""}
-          ${x.pending ? "" : `<span class="note-acts"><button data-act="note-copy" title="Copy this note">Copy</button><button data-act="note-edit">Edit</button><button data-act="note-del">Delete</button></span>`}</div>
-        <div class="note-body">${linkify(x.text)}</div></div>`;
+          ${x.pending ? "" : `<span class="note-acts">${x.text ? `<button data-act="note-copy" title="Copy this note's text">Copy</button>` : ""}<button data-act="note-edit">Edit</button><button data-act="note-del">Delete</button></span>`}</div>
+        ${x.text ? `<div class="note-body">${linkify(x.text)}</div>` : ""}${galleryHTML(x.images || [], false)}</div>`;
     }).join("");
     const body = !Array.isArray(t.notes) ? `<div class="th-empty">Loading notes…</div>`
       : notes.length ? items
-      : `<div class="th-empty">Nothing here yet. Keep updates, drafts and links for this to-do here — they stay off the notebook page.</div>`;
+      : `<div class="th-empty">Nothing here yet. Keep updates, drafts, links and images for this to-do here — they stay off the notebook page.</div>`;
     return `${t.context || facts ? `<div class="th-root">${t.context ? `<div class="th-ctx">${esc(t.context)}</div>` : ""}${facts ? `<div class="th-facts">${facts}</div>` : ""}</div>` : ""}
       <div class="th-div">${notes.length ? `${notes.length} note${notes.length > 1 ? "s" : ""}` : "Notes"}</div>
       ${body}
@@ -1201,12 +1356,17 @@ Question: ${q}`;
     const key = threadKey();
     if (drawer.dataset.thread !== key || !$("#noteInput")) {
       drawer.dataset.thread = key;
+      const img = canAttach();
       drawer.innerHTML = `<div class="dr-head"></div><div class="log scroll" id="thLog"></div>
-        <form class="composer" data-form="note"><textarea id="noteInput" rows="2" placeholder="Add an update, a draft or a link…" aria-label="Add a note"></textarea><button class="btn">Add</button></form>
-        <div class="dr-foot"><span class="hint">Enter to add · Shift+Enter for a new line</span></div>`;
+        <div class="att-tray" id="attTray" hidden></div>
+        <form class="composer" data-form="note">${img ? `<button type="button" class="att-btn" data-act="att-pick" title="Attach images — or paste or drop them here" aria-label="Attach images">${IMG_ICO}</button>
+          <input type="file" id="attFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>` : ""}
+          <textarea id="noteInput" rows="2" placeholder="${img ? "Add an update, a draft, a link or an image…" : "Add an update, a draft or a link…"}" aria-label="Add a note"></textarea><button class="btn">Add</button></form>
+        <div class="dr-foot"><span class="hint">Enter to add · Shift+Enter for a new line${img ? " · paste or drop images" : ""}</span></div>`;
       const fresh = $("#noteInput");
       fresh.value = drafts.get(key) || "";
       autosize(fresh);
+      renderAtts();
     }
     const head = drawer.querySelector(".dr-head");
     if (!head.querySelector(".th-title-edit")) head.innerHTML = threadHeadHTML(t);
@@ -1216,6 +1376,7 @@ Question: ${q}`;
     if (prevEd) T.editText = prevEd.value;
     log.innerHTML = threadLogHTML(t);
     log.scrollTop = T.stick ? log.scrollHeight : keepScroll;
+    if (T.stick) stickUntil = Date.now() + 3000;
     T.stick = false;
     const ed = log.querySelector(".note-edit");
     if (ed) {
@@ -1359,6 +1520,7 @@ Question: ${q}`;
   }
 
   document.addEventListener("click", e => {
+    if (e.target.closest("#lightbox")) { if (!e.target.closest("a, img")) closeLightbox(); return; }
     const el = e.target.closest("[data-act]");
     if (!el) { rowClick(e); return; }
     const act = el.dataset.act, p = P();
@@ -1391,11 +1553,15 @@ Question: ${q}`;
         const nt = noteOf(el);
         if (!nt) break;
         if (T.editing) saveNoteEdit();
-        Object.assign(T, { editing: nt.id, editText: nt.text, focusEdit: true });
+        Object.assign(T, { editing: nt.id, editText: nt.text, editImgs: (nt.images || []).map(i => i.id), focusEdit: true });
         renderDrawer();
         break;
       }
       case "note-cancel": T.editing = null; renderDrawer(); break;
+      case "edit-img-del": T.editImgs = (T.editImgs || []).filter(i => i !== el.dataset.img); renderDrawer(); break;
+      case "img-open": openLightbox(el.dataset.src, el.dataset.name); break;
+      case "att-pick": { const f = $("#attFile"); if (f) f.click(); break; }
+      case "att-del": removeAtt(threadKey(), el.closest(".att").dataset.att); break;
       case "note-save": saveNoteEdit(); break;
       case "note-del": {
         const nt = noteOf(el);
@@ -1433,6 +1599,8 @@ Question: ${q}`;
         const id = li.dataset.id, date = li.dataset.date, nn = +el.dataset.notes || 0;
         if (nn && !armed(el, `Delete with ${nn} note${nn > 1 ? "s" : ""}?`)) break;
         if (threadIs(date, id)) closeDrawer();
+        discardImages((atts.get(`${date}:${id}`) || []).filter(a => a.status === "ready").map(a => a.id));
+        atts.delete(`${date}:${id}`);
         S.nsel.delete(`${date}|${id}`);
         if (S.day && S.day.date === date) S.day.todos = S.day.todos.filter(t => t.id !== id);
         const row = dayRow(date); if (row) row.todos = row.todos.filter(t => t.id !== id);
@@ -1448,6 +1616,7 @@ Question: ${q}`;
           toast("Moved to today's page");
           const from = `${date}:${id}`, to = `${today}:${id}`;
           if (drafts.has(from)) { drafts.set(to, drafts.get(from)); drafts.delete(from); }
+          if (atts.has(from)) { atts.set(to, atts.get(from)); atts.delete(from); }
           if (threadIs(date, id)) { following = id; setP("todo", to); }
         });
         break;
@@ -1506,6 +1675,60 @@ Question: ${q}`;
     }
   });
 
+  document.addEventListener("change", e => {
+    if (e.target.id !== "attFile") return;
+    attachFiles(Array.from(e.target.files || []));
+    e.target.value = "";
+  });
+
+  document.addEventListener("paste", e => {
+    if (e.target.id !== "noteInput" || !canAttach()) return;
+    const files = filesFrom(e.clipboardData);
+    if (!files.length) return;
+    if (!e.clipboardData.getData("text/plain")) e.preventDefault();
+    attachFiles(files);
+  });
+
+  let dropLi = null;
+  const dragFiles = e => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  const elOf = e => (e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement) || document.body;
+  function clearDrop() {
+    drawer.classList.remove("drop-on");
+    if (dropLi) dropLi.classList.remove("drop-on");
+    dropLi = null;
+  }
+  document.addEventListener("dragover", e => {
+    if (!dragFiles(e)) return;
+    e.preventDefault();
+    const el = elOf(e), ok = canAttach();
+    const onDrawer = ok && C.mode === "todo" && !!el.closest("#drawer");
+    const li = ok && !onDrawer ? el.closest("li.todo") : null;
+    e.dataTransfer.dropEffect = onDrawer || li ? "copy" : "none";
+    drawer.classList.toggle("drop-on", onDrawer);
+    if (dropLi !== li) { if (dropLi) dropLi.classList.remove("drop-on"); dropLi = li; if (li) li.classList.add("drop-on"); }
+  });
+  document.addEventListener("dragleave", e => { if (!e.relatedTarget) clearDrop(); });
+  document.addEventListener("drop", e => {
+    if (!dragFiles(e)) return;
+    e.preventDefault();
+    clearDrop();
+    if (!canAttach()) return;
+    const el = elOf(e), files = filesFrom(e.dataTransfer);
+    const li = el.closest("li.todo");
+    if (C.mode === "todo" && el.closest("#drawer")) attachFiles(files);
+    else if (li) {
+      const { date, id } = li.dataset;
+      openThreadParam(date, id);
+      if (threadIs(date, id)) attachFiles(files);
+    } else toast("Drop images on a to-do, or into its notes");
+  });
+
+  drawer.addEventListener("load", e => {
+    if (e.target.tagName !== "IMG" || Date.now() > stickUntil) return;
+    const log = $("#thLog");
+    if (log) log.scrollTop = log.scrollHeight;
+  }, true);
+
   document.addEventListener("submit", e => {
     const f = e.target;
     e.preventDefault();
@@ -1533,6 +1756,7 @@ Question: ${q}`;
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNoteEdit(); return; }
       if (e.key === "Escape") { e.preventDefault(); T.editing = null; renderDrawer(); return; }
     }
+    if (e.key === "Escape" && !$("#lightbox").hidden) { closeLightbox(); return; }
     if (e.key === "Escape" && C.mode) { closeDrawer(); return; }
     if (e.key === "Escape" && S.nsel.size && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) { S.nsel.clear(); render(); return; }
     if ((e.key === "Enter" || e.key === " ") && e.target.getAttribute("role") === "button" && e.target.dataset.act) {
