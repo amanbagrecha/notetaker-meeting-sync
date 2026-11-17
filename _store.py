@@ -11,7 +11,6 @@ Layout under .fused/data/:
   notion/processed/           merged Notion results (audit trail)
   settings.json, sync.json    auto-sync switch + Notion target, sync request log
 """
-import fcntl
 import hashlib
 import json
 import os
@@ -20,6 +19,12 @@ import tempfile
 import time
 from contextlib import contextmanager
 from datetime import datetime
+
+try:
+    import fcntl  # POSIX
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(APP_DIR, ".fused", "data")
@@ -94,12 +99,37 @@ def write_text(path, text):
 def locked():
     """One writer at a time across overlapping runPython calls."""
     ensure_dirs()
-    with open(os.path.join(DATA, ".lock"), "a") as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
+    with open(os.path.join(DATA, ".lock"), "a+") as fh:
+        _lock(fh)
         try:
             yield
         finally:
-            fcntl.flock(fh, fcntl.LOCK_UN)
+            _unlock(fh)
+
+
+def _lock(fh):
+    if fcntl:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        return
+    # msvcrt locks a byte range from the current position; lock byte 0, retrying.
+    deadline = time.time() + 55
+    while True:
+        fh.seek(0)
+        try:
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+            return
+        except OSError:
+            if time.time() > deadline:
+                raise
+            time.sleep(0.05)
+
+
+def _unlock(fh):
+    if fcntl:
+        fcntl.flock(fh, fcntl.LOCK_UN)
+        return
+    fh.seek(0)
+    msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 # ---------- days ----------
