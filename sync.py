@@ -123,7 +123,7 @@ def _record(log, dates, trigger, now):
 
 def _taken(dates):
     rows = ['  %s %s "%s" (id %s)' % (d, m.get("start") or "", m.get("title") or "", m["id"])
-            for d in dates for m in S.load_day(d)["meetings"] if S.todos_taken(m)]
+            for d in dates for m in S.load_day(d)["meetings"] if S.todos_taken(m, d)]
     return "\n".join(rows) or "  (none yet)"
 
 

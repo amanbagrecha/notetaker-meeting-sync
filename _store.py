@@ -301,10 +301,20 @@ def has_notes(m):
     return m.get("source") != "google-calendar" and bool(m.get("summary") or m.get("details") or m.get("discussed"))
 
 
-def todos_taken(m):
+def todos_taken(m, d=None):
     # todos_at: when its to-dos were taken; None = notes came in before it ended, still to take.
     # Pages synced before this rule have no todos_at at all: their to-dos were taken back then.
-    return has_notes(m) and m.get("todos_at", True) is not None
+    if not has_notes(m):
+        return False
+    at = m.get("todos_at", True)
+    if at is None:
+        return False
+    if at is True or not d:
+        return True
+    try:
+        return _ended(d, m, datetime.fromisoformat(str(at)).astimezone())
+    except ValueError:
+        return True
 
 
 def _ended(d, m, at):
@@ -363,7 +373,12 @@ def merge_payload(payload):
         m["has_transcript"] = os.path.exists(transcript_path(m["id"]))
     day["meetings"] = sorted(new.values(), key=lambda m: (m.get("start") or "99:99", m.get("title") or ""))
 
-    taken = {remap.get(oid, oid) for oid, om in old.items() if todos_taken(om)}
+    taken = set()
+    for oid, om in old.items():
+        nid = remap.get(oid, oid)
+        cur = dict(om, end=(new.get(nid) or om).get("end"))
+        if todos_taken(cur, d):
+            taken.add(nid)
     try:
         at = datetime.fromisoformat(str(payload.get("synced_at"))).astimezone()
     except ValueError:
